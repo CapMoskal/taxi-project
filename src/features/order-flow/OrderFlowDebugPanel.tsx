@@ -1,10 +1,9 @@
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useOrderFlowActorRef, useOrderFlowSelector } from './context'
-import type { DriverInfo, FareInfo, GeoCoords, PaymentInfo, RatingInfo } from './types'
+import { DEMO_DESTINATION, DEMO_PICKUP } from './demoRoute'
+import type { DriverInfo, FareInfo, PaymentInfo, RatingInfo } from './types'
 
-const DEMO_PICKUP: GeoCoords = { lat: 55.7558, lng: 37.6173 }
-const DEMO_DESTINATION: GeoCoords = { lat: 55.751, lng: 37.6175 }
 const DEMO_DRIVER: DriverInfo = {
   id: 'demo-driver-1',
   name: 'Алексей',
@@ -38,7 +37,7 @@ function OrderFlowDebugPanel({ className }: OrderFlowDebugPanelProps) {
   return (
     <div
       className={cn(
-        'flex flex-col gap-2 border-t border-border bg-background/95 p-3 text-sm backdrop-blur',
+        'relative z-10 flex flex-col gap-2 border-t border-border bg-background/95 p-3 text-sm backdrop-blur',
         className,
       )}
       data-slot="order-flow-debug-panel"
@@ -110,13 +109,6 @@ function OrderFlowDebugPanel({ className }: OrderFlowDebugPanelProps) {
 
         {snapshot.matches('enRoute') && (
           <>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => actorRef.send({ type: 'DRIVER_LOCATION_UPDATE', coords: DEMO_PICKUP })}
-            >
-              Обновить геопозицию
-            </Button>
             <Button size="sm" onClick={() => actorRef.send({ type: 'DRIVER_ARRIVED' })}>
               Водитель прибыл
             </Button>
@@ -133,18 +125,9 @@ function OrderFlowDebugPanel({ className }: OrderFlowDebugPanelProps) {
         )}
 
         {snapshot.matches('inRide') && (
-          <>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => actorRef.send({ type: 'DRIVER_LOCATION_UPDATE', coords: DEMO_DESTINATION })}
-            >
-              Обновить геопозицию
-            </Button>
-            <Button size="sm" onClick={() => actorRef.send({ type: 'RIDE_COMPLETED', fare: DEMO_FARE })}>
-              Завершить поездку
-            </Button>
-          </>
+          <Button size="sm" onClick={() => actorRef.send({ type: 'RIDE_COMPLETED', fare: DEMO_FARE })}>
+            Завершить поездку
+          </Button>
         )}
 
         {completedValue && (
