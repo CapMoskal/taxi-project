@@ -65,6 +65,22 @@ macOS (см. START_HERE) — приемлемо. Если появится Linux
 `>=22.12`/`^20.19`, тогда optional-резолв заработает сам и явную запись можно
 будет убрать.
 
+## 2026-07-13 — Playwright как devDependency вместо `chromium-cli`
+
+START_HERE рекомендовал «Playwright CLI как skill» (`chromium-cli`) — лёгкий
+браузерный драйвер без постоянного MCP-сервера в контексте. На этой машине
+`chromium-cli` не установлен и не является npm-пакетом — недоступен.
+
+**Решение:** `playwright` — devDependency проекта, `npx playwright install
+chromium` скачал браузер локально (`~/Library/Caches/ms-playwright`). Никакого
+MCP-сервера не подключали — проверка UI идёт через одноразовые Node-скрипты
+(`require('playwright')`) по запросу, без постоянного расхода контекста между
+задачами. Тот же эффект, что и `chromium-cli`, другим способом.
+
+Context7 MCP подключили как обычно (`claude mcp add`, project scope,
+`.mcp.json` в репо) — он и должен быть MCP, задача — свежая документация в
+промпт, не браузер.
+
 ## 2026-07-13 — components.json / tsconfig: `paths` продублирован в корневом tsconfig.json
 
 CLI `shadcn` при первом запуске писал файлы в буквальную папку `@/...` в корне
