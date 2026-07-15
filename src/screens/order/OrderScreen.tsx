@@ -1,6 +1,12 @@
+import { useRef } from 'react'
+import { AnimatePresence } from 'motion/react'
+import type maplibregl from 'maplibre-gl'
 import { MapCanvas } from '@/shared/map/MapCanvas'
-import { OrderFlowProvider } from '@/features/order-flow/context'
+import type { MapMarker } from '@/shared/map/MapCanvas'
+import { OrderFlowProvider, useOrderFlowSelector } from '@/features/order-flow/context'
 import { OrderFlowDebugPanel } from '@/features/order-flow/OrderFlowDebugPanel'
+import { SelectingDestinationControls } from '@/features/order-flow/SelectingDestinationControls'
+import { ClassPickerSheet } from '@/features/order-flow/ClassPickerSheet'
 import { useDriverLocationSimulator } from '@/features/order-flow/useDriverLocationSimulator'
 import { DEMO_PICKUP } from '@/features/order-flow/demoRoute'
 
@@ -13,17 +19,45 @@ function OrderScreen() {
 }
 
 function OrderScreenContent() {
-  const { position, routeBounds } = useDriverLocationSimulator()
+  const mapRef = useRef<maplibregl.Map | null>(null)
+  const snapshot = useOrderFlowSelector((state) => state)
+  const { position: driverPosition, routeBounds: driverRouteBounds } = useDriverLocationSimulator()
+
+  const markers: MapMarker[] = []
+  if (snapshot.context.pickup) {
+    markers.push({ id: 'pickup', position: snapshot.context.pickup, color: 'var(--foreground)' })
+  }
+  if (snapshot.context.destination) {
+    markers.push({ id: 'destination', position: snapshot.context.destination, color: 'var(--destructive)' })
+  }
+  if (driverPosition) {
+    markers.push({ id: 'driver', position: driverPosition, color: 'var(--primary)' })
+  }
+
+  const routeLine =
+    snapshot.context.pickup && snapshot.context.destination
+      ? [snapshot.context.pickup, snapshot.context.destination]
+      : null
 
   return (
     <div className="relative h-dvh w-full overflow-hidden">
       <MapCanvas
         className="absolute inset-0"
         center={[DEMO_PICKUP.lng, DEMO_PICKUP.lat]}
-        zoom={12}
-        markerPosition={position}
-        routeBounds={routeBounds}
+        zoom={14}
+        markers={markers}
+        routeLine={routeLine}
+        routeBounds={driverRouteBounds}
+        showCenterPin={snapshot.matches('selectingDestination')}
+        onMapLoad={(map) => {
+          mapRef.current = map
+        }}
       />
+
+      {snapshot.matches('selectingDestination') && <SelectingDestinationControls mapRef={mapRef} />}
+
+      <AnimatePresence>{snapshot.matches('selectingClass') && <ClassPickerSheet key="class-picker" />}</AnimatePresence>
+
       <OrderFlowDebugPanel className="absolute inset-x-0 bottom-0" />
     </div>
   )

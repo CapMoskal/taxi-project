@@ -1,6 +1,10 @@
-export type GeoCoords = { lat: number; lng: number }
+import type { LatLng } from '@/shared/geo/types'
+import type { RideClassId } from '@/entities/ride-class/types'
 
-export type RideClassId = 'economy' | 'comfort' | 'business'
+export type { LatLng as GeoCoords } from '@/shared/geo/types'
+export type { RideClassId } from '@/entities/ride-class/types'
+
+type GeoCoords = LatLng
 
 export interface DriverInfo {
   id: string

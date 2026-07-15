@@ -1,7 +1,6 @@
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useOrderFlowActorRef, useOrderFlowSelector } from './context'
-import { DEMO_DESTINATION, DEMO_PICKUP } from './demoRoute'
 import type { DriverInfo, FareInfo, PaymentInfo, RatingInfo } from './types'
 
 const DEMO_DRIVER: DriverInfo = {
@@ -28,6 +27,7 @@ function OrderFlowDebugPanel({ className }: OrderFlowDebugPanelProps) {
   const actorRef = useOrderFlowActorRef()
 
   if (!import.meta.env.DEV) return null
+  if (snapshot.matches('selectingDestination') || snapshot.matches('selectingClass')) return null
 
   const completedValue =
     typeof snapshot.value === 'object' && snapshot.value !== null && 'completed' in snapshot.value
@@ -48,38 +48,6 @@ function OrderFlowDebugPanel({ className }: OrderFlowDebugPanelProps) {
           <Button size="sm" onClick={() => actorRef.send({ type: 'START_ORDER' })}>
             Начать заказ
           </Button>
-        )}
-
-        {snapshot.matches('selectingDestination') && (
-          <>
-            <Button size="sm" variant="outline" onClick={() => actorRef.send({ type: 'SET_PICKUP', coords: DEMO_PICKUP })}>
-              Задать точку A
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => actorRef.send({ type: 'SET_DESTINATION', coords: DEMO_DESTINATION })}
-            >
-              Задать точку B
-            </Button>
-            <Button size="sm" onClick={() => actorRef.send({ type: 'CONFIRM_DESTINATION' })}>
-              Подтвердить маршрут
-            </Button>
-          </>
-        )}
-
-        {snapshot.matches('selectingClass') && (
-          <>
-            <Button size="sm" variant="outline" onClick={() => actorRef.send({ type: 'SELECT_CLASS', classId: 'comfort' })}>
-              Выбрать «Комфорт»
-            </Button>
-            <Button size="sm" onClick={() => actorRef.send({ type: 'CONFIRM_CLASS' })}>
-              Подтвердить класс
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => actorRef.send({ type: 'BACK_TO_DESTINATION' })}>
-              Назад
-            </Button>
-          </>
         )}
 
         {snapshot.matches('searchingDriver') && (
