@@ -1,15 +1,8 @@
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useOrderFlowActorRef, useOrderFlowSelector } from './context'
-import type { DriverInfo, FareInfo, PaymentInfo, RatingInfo } from './types'
+import type { FareInfo, PaymentInfo, RatingInfo } from './types'
 
-const DEMO_DRIVER: DriverInfo = {
-  id: 'demo-driver-1',
-  name: 'Алексей',
-  carModel: 'Kia Rio',
-  plate: 'А123БВ777',
-  rating: 4.9,
-}
 const DEMO_FARE: FareInfo = { amount: 350, currency: 'RUB' }
 const DEMO_PAYMENT: PaymentInfo = { method: 'card', amount: 350, paidAt: new Date().toISOString() }
 const DEMO_RATING: RatingInfo = { stars: 5 }
@@ -27,7 +20,12 @@ function OrderFlowDebugPanel({ className }: OrderFlowDebugPanelProps) {
   const actorRef = useOrderFlowActorRef()
 
   if (!import.meta.env.DEV) return null
-  if (snapshot.matches('selectingDestination') || snapshot.matches('selectingClass')) return null
+  if (
+    snapshot.matches('selectingDestination') ||
+    snapshot.matches('selectingClass') ||
+    snapshot.matches('searchingDriver')
+  )
+    return null
 
   const completedValue =
     typeof snapshot.value === 'object' && snapshot.value !== null && 'completed' in snapshot.value
@@ -48,20 +46,6 @@ function OrderFlowDebugPanel({ className }: OrderFlowDebugPanelProps) {
           <Button size="sm" onClick={() => actorRef.send({ type: 'START_ORDER' })}>
             Начать заказ
           </Button>
-        )}
-
-        {snapshot.matches('searchingDriver') && (
-          <>
-            <Button size="sm" onClick={() => actorRef.send({ type: 'DRIVER_FOUND', driver: DEMO_DRIVER })}>
-              Водитель найден
-            </Button>
-            <Button size="sm" variant="destructive" onClick={() => actorRef.send({ type: 'SEARCH_FAILED' })}>
-              Не найден
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => actorRef.send({ type: 'CANCEL_RIDE' })}>
-              Отменить
-            </Button>
-          </>
         )}
 
         {snapshot.matches('driverAssigned') && (

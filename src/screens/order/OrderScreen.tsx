@@ -7,6 +7,8 @@ import { OrderFlowProvider, useOrderFlowSelector } from '@/features/order-flow/c
 import { OrderFlowDebugPanel } from '@/features/order-flow/OrderFlowDebugPanel'
 import { SelectingDestinationControls } from '@/features/order-flow/SelectingDestinationControls'
 import { ClassPickerSheet } from '@/features/order-flow/ClassPickerSheet'
+import { DriverSearchPanel } from '@/features/order-flow/DriverSearchPanel'
+import { DriverCard } from '@/features/order-flow/DriverCard'
 import { useDriverLocationSimulator } from '@/features/order-flow/useDriverLocationSimulator'
 import { DEMO_PICKUP } from '@/features/order-flow/demoRoute'
 
@@ -56,7 +58,12 @@ function OrderScreenContent() {
 
       {snapshot.matches('selectingDestination') && <SelectingDestinationControls mapRef={mapRef} />}
 
-      <AnimatePresence>{snapshot.matches('selectingClass') && <ClassPickerSheet key="class-picker" />}</AnimatePresence>
+      <AnimatePresence>
+        {snapshot.matches('selectingClass') && <ClassPickerSheet key="class-picker" />}
+        {snapshot.matches('searchingDriver') && <DriverSearchPanel key="driver-search" />}
+      </AnimatePresence>
+
+      <DriverCard />
 
       <OrderFlowDebugPanel className="absolute inset-x-0 bottom-0" />
     </div>
