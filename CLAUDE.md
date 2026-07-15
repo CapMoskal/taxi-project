@@ -42,8 +42,8 @@ npm run preview  # прод-сборка локально
 - `docs/decisions.md` — ADR-лог, включая грабли скаффолда (Vite 8→6, shadcn
   alias-баг).
 - `docs/roadmap.md` — фича-за-фичей план, меняется по ходу.
-- `.claude/rules/design-tokens.md` — направление «светлый минимализм»,
-  текущий (временный) preset shadcn/ui.
+- `.claude/rules/design-tokens.md` — «светлый минимализм», изумрудный
+  `--primary` (зафиксировано), скругления/шрифт — дефолт preset shadcn/ui.
 - `.claude/rules/git-workflow.md` — ветки, коммиты.
 - `.claude/rules/msw-mocking.md` — конвенции моков.
 - `.claude/rules/testing.md` — что гонять перед коммитом.

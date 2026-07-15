@@ -5,33 +5,82 @@
 ```
 src/
 ├── app/        store (RTK), корневой App, провайдеры
-├── entities/   доменные сущности: order, driver, ride, user — RTK slices/api
-├── features/   флоу и юзкейсы: order-flow (XState-машина), class-picker, payment...
+├── entities/   доменные сущности: ride-class (готово), order/driver/user — по мере роадмапа
+├── features/   флоу и юзкейсы: order-flow (XState-машина + экраны состояний)
 ├── screens/    экраны-контейнеры, собирают entities+features в страницу
 └── shared/
-    ├── ui/     обёртки над shadcn/ui, переиспользуемые примитивы
-    ├── map/    MapLibre-обвязка, интерполяция маркера по треку
-    └── mocks/  MSW handlers + фикстуры данных
+    ├── ui/     обёртки над shadcn/ui, переиспользуемые примитивы (BottomSheet)
+    ├── map/    MapLibre-обвязка (MapCanvas), интерполяция маркера по треку
+    ├── geo/    чистая геометрия (LatLng, haversineDistanceMeters) — без React/карты
+    └── mocks/  MSW handlers (ре-экспорт из entities/*/mocks.ts) + browser.ts
 ```
 
 `src/components/ui/` — сырые компоненты shadcn/ui (генерируются CLI,
 `npx shadcn@latest add <name>`), не трогать руками напрямую — доедаем в
 `shared/ui/` при необходимости кастомизации сверх токенов.
 
+`shared/geo` вынесен из `shared/map` намеренно: геометрия (расстояние,
+координаты) нужна и рендерингу карты, и MSW-хендлерам расчёта цены
+(`entities/ride-class/mocks.ts`) — а mock-слой не должен зависеть от
+карт-рендеринга. `shared/map` не импортируется из `entities/*`.
+
+## `features/order-flow` — детально
+
+Ядро приложения, всё вокруг одной XState-машины (`machine.ts`,
+`orderFlowMachine`, v5 `setup().createMachine()`):
+`idle → selectingDestination → selectingClass → searchingDriver →
+driverAssigned → enRoute → arrived → inRide → completed (parallel:
+payment/rating) → done → (RESET) → idle`.
+
+- `context.ts` — `createActorContext(orderFlowMachine)`, провайдер
+  (`OrderFlowProvider`) заворачивает `OrderScreen`, не корень приложения.
+- `types.ts` — `OrderFlowContext`/`OrderFlowEvent`. `GeoCoords` и
+  `RideClassId` — **ре-экспорты**, не собственные типы (см. ниже).
+- `demoRoute.ts` — `DEMO_PICKUP` (фиксированная точка A, реальной геолокации
+  пока нет) + `getDriverStartPoint()` (смещение для этапа `enRoute`,
+  относительно pickup, не абсолютная точка на карте).
+- `useDriverLocationSimulator.ts` — rAF-трекинг водителя (использует
+  `shared/map/useAnimatedPosition`), полилинии строятся из
+  `context.pickup`/`context.destination` через `useMemo`.
+- `SelectingDestinationControls.tsx` / `ClassPickerSheet.tsx` — реальный UI
+  для состояний `selectingDestination`/`selectingClass` (центр-пин+drag,
+  bottom-sheet с ценами).
+- `OrderFlowDebugPanel.tsx` — dev-only (`import.meta.env.DEV`), кнопки для
+  состояний, которые **ещё не получили настоящий UI**: `idle`,
+  `searchingDriver`, `driverAssigned`, `enRoute`, `arrived`, `inRide`,
+  `completed`, `done`. Возвращает `null` для `selectingDestination`/
+  `selectingClass` (там уже настоящий UI, панель не нужна и мешала бы).
+  По мере роадмапа кнопки продолжают заменяться реальными экранами.
+
 ## Как стыкуются данные
 
 1. **RTK Query** — единственный источник сетевых данных. Компоненты не дергают
-   `fetch` напрямую. Эндпоинты живут рядом с сущностью в `entities/*/api.ts`.
+   `fetch` напрямую. Эндпоинты живут рядом с сущностью в `entities/*/api.ts`
+   (пример: `entities/ride-class/api.ts`, `useGetRideClassQuotesQuery`).
 2. **MSW** перехватывает все запросы RTK Query на уровне Service Worker
-   (`src/shared/mocks/browser.ts`, хендлеры — `src/shared/mocks/handlers.ts`).
-   Включается только в dev (`import.meta.env.PROD` гейт в `main.tsx`). Фронт не
-   знает, что бэкенда нет — честные loading/error state.
-3. **XState** — машина состояний флоу заказа (`features/order-flow`). Триггерится
-   результатами RTK Query мутаций/запросов, не дублирует их кэш — только
-   оркестрирует переходы (поиск машины → назначена → едет → в поездке → завершено).
-4. **MapLibre** — `shared/map` содержит обёртку над картой и хук интерполяции
-   маркера по заранее заданному полилайну (`requestAnimationFrame`, без реального
-   routing API — см. `decisions.md`).
+   (`src/shared/mocks/browser.ts`, хендлеры собираются в
+   `src/shared/mocks/handlers.ts` ре-экспортом из `entities/*/mocks.ts` —
+   конвенция из `.claude/rules/msw-mocking.md`). Включается только в dev
+   (`import.meta.env.PROD` гейт в `main.tsx`). Фронт не знает, что бэкенда
+   нет — честные loading/error state (см. `ClassPickerSheet.tsx`).
+3. **`app/store.ts`** регистрирует reducer+middleware каждого RTK Query
+   api-slice (`[api.reducerPath]: api.reducer`,
+   `getDefaultMiddleware().concat(api.middleware)`) — при добавлении нового
+   `entities/*/api.ts` не забыть подключить сюда.
+4. **XState** — машина состояний флоу заказа (`features/order-flow`).
+   Оркестрирует переходы; серверные (мокнутые) данные читает через RTK Query
+   хуки в компонентах-состояниях, не дублирует их кэш в своём контексте —
+   контекст хранит только то, что относится к самому флоу (pickup,
+   destination, выбранный класс, водитель, geo-позиция).
+5. **MapLibre** (`shared/map/MapCanvas`) — единая точка входа для всего, что
+   рисуется на карте: `markers` (массив `{id, position, color}`, diff по id —
+   pickup/destination/driver одновременно), `routeLine` (GeoJSON line-слой),
+   `routeBounds` (камера через `fitBounds`), `showCenterPin` (CSS-оверлей для
+   выбора точки). Консьюмеры не трогают `maplibregl.Map`/`Marker` напрямую.
+   **Важно:** цвета маркеров (`var(--primary)` и т.п.) резолвятся браузером
+   нативно (SVG `fill`), но MapLibre `paint`-свойства слоёв (WebGL) CSS
+   custom properties и `oklch()` не понимают — для линий маршрута цвет
+   квантуется через `resolveCssColor()` (canvas 1×1), см. `decisions.md`.
 
 ## PWA / MSW gate
 
@@ -39,8 +88,10 @@ src/
 `mockServiceWorker.js` (MSW) — отдельный SW, работает только в dev через
 `enableMocking()` в `main.tsx`. В проде (`import.meta.env.PROD`) MSW не
 инициализируется — бэкенд в проде отсутствует по определению проекта (см.
-START_HERE/CLAUDE.md), поэтому прод-сборка сейчас — чисто демонстрационный
-артефакт (npm run build работает, но живого API за ним нет).
+CLAUDE.md), поэтому прод-сборка сейчас — чисто демонстрационный артефакт
+(`npm run build` работает, но живого API за ним нет, а debug-панель для
+непокрытых реальным UI состояний тоже пропадает — прод-сборка сейчас
+проходима только до `selectingClass` включительно).
 
 ## Алиас
 
