@@ -5,7 +5,7 @@
 ```
 src/
 ├── app/        store (RTK), корневой App, провайдеры
-├── entities/   доменные сущности: ride-class (готово), order/driver/user — по мере роадмапа
+├── entities/   доменные сущности: ride-class, driver (готово), order/user — по мере роадмапа
 ├── features/   флоу и юзкейсы: order-flow (XState-машина + экраны состояний)
 ├── screens/    экраны-контейнеры, собирают entities+features в страницу
 └── shared/
@@ -42,14 +42,21 @@ payment/rating) → done → (RESET) → idle`.
 - `useDriverLocationSimulator.ts` — rAF-трекинг водителя (использует
   `shared/map/useAnimatedPosition`), полилинии строятся из
   `context.pickup`/`context.destination` через `useMemo`.
-- `SelectingDestinationControls.tsx` / `ClassPickerSheet.tsx` — реальный UI
-  для состояний `selectingDestination`/`selectingClass` (центр-пин+drag,
-  bottom-sheet с ценами).
+- `SelectingDestinationControls.tsx` / `ClassPickerSheet.tsx` /
+  `DriverSearchPanel.tsx` — реальный UI для состояний
+  `selectingDestination`/`selectingClass`/`searchingDriver` (центр-пин+drag,
+  bottom-sheet с ценами, bottom-sheet с поиском водителя через
+  `entities/driver`).
+- `DriverCard.tsx` — персистентная карточка (не bottom sheet, `absolute
+  top-0`), показывается поверх карты, пока `context.driver !== null` и
+  состояние — одно из `driverAssigned`/`enRoute`/`arrived`/`inRide`. Не
+  привязана к конкретному состоянию debug-панели — сосуществует с ней
+  (debug-панель снизу, карточка сверху).
 - `OrderFlowDebugPanel.tsx` — dev-only (`import.meta.env.DEV`), кнопки для
   состояний, которые **ещё не получили настоящий UI**: `idle`,
-  `searchingDriver`, `driverAssigned`, `enRoute`, `arrived`, `inRide`,
-  `completed`, `done`. Возвращает `null` для `selectingDestination`/
-  `selectingClass` (там уже настоящий UI, панель не нужна и мешала бы).
+  `driverAssigned`, `enRoute`, `arrived`, `inRide`, `completed`, `done`.
+  Возвращает `null` для `selectingDestination`/`selectingClass`/
+  `searchingDriver` (там уже настоящий UI, панель не нужна и мешала бы).
   По мере роадмапа кнопки продолжают заменяться реальными экранами.
 
 ## Как стыкуются данные
