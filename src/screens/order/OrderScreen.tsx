@@ -3,8 +3,7 @@ import { AnimatePresence } from 'motion/react'
 import type maplibregl from 'maplibre-gl'
 import { MapCanvas } from '@/shared/map/MapCanvas'
 import type { MapMarker } from '@/shared/map/MapCanvas'
-import { OrderFlowProvider, useOrderFlowSelector } from '@/features/order-flow/context'
-import { OrderFlowDebugPanel } from '@/features/order-flow/OrderFlowDebugPanel'
+import { useOrderFlowSelector } from '@/features/order-flow/context'
 import { SelectingDestinationControls } from '@/features/order-flow/SelectingDestinationControls'
 import { ClassPickerSheet } from '@/features/order-flow/ClassPickerSheet'
 import { DriverSearchPanel } from '@/features/order-flow/DriverSearchPanel'
@@ -13,16 +12,9 @@ import { RideCompletionSheet } from '@/features/order-flow/RideCompletionSheet'
 import { RideDoneCard } from '@/features/order-flow/RideDoneCard'
 import { useRideAutomation } from '@/features/order-flow/useRideAutomation'
 import { DEMO_PICKUP } from '@/features/order-flow/demoRoute'
+import { IdleOverlay } from './IdleOverlay'
 
 function OrderScreen() {
-  return (
-    <OrderFlowProvider>
-      <OrderScreenContent />
-    </OrderFlowProvider>
-  )
-}
-
-function OrderScreenContent() {
   const mapRef = useRef<maplibregl.Map | null>(null)
   const snapshot = useOrderFlowSelector((state) => state)
   const { position: driverPosition, routeBounds: driverRouteBounds } = useRideAutomation()
@@ -61,6 +53,7 @@ function OrderScreenContent() {
       {snapshot.matches('selectingDestination') && <SelectingDestinationControls mapRef={mapRef} />}
 
       <AnimatePresence>
+        {snapshot.matches('idle') && <IdleOverlay key="idle-overlay" />}
         {snapshot.matches('selectingClass') && <ClassPickerSheet key="class-picker" />}
         {snapshot.matches('searchingDriver') && <DriverSearchPanel key="driver-search" />}
         {snapshot.matches('completed') && <RideCompletionSheet key="ride-completion" />}
@@ -68,8 +61,6 @@ function OrderScreenContent() {
       </AnimatePresence>
 
       <DriverCard />
-
-      <OrderFlowDebugPanel className="absolute inset-x-0 bottom-0" />
     </div>
   )
 }

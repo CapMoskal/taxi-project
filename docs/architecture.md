@@ -4,17 +4,33 @@
 
 ```
 src/
-├── app/        store (RTK), корневой App, провайдеры
-├── entities/   доменные сущности: ride-class, driver (готово), order/user — по мере роадмапа
+├── app/        store (RTK), корневой App, провайдеры, навигация
+├── entities/   доменные сущности: ride-class, driver, user (готово), order — по мере роадмапа
 ├── features/   флоу и юзкейсы: order-flow (XState-машина + экраны состояний)
-├── screens/    экраны-контейнеры, собирают entities+features в страницу
+├── screens/    экраны-контейнеры: order (карта+флоу), profile
 └── shared/
-    ├── ui/     обёртки над shadcn/ui, переиспользуемые примитивы (BottomSheet)
+    ├── ui/     обёртки над shadcn/ui, переиспользуемые примитивы (BottomSheet, InitialsAvatar)
     ├── map/    MapLibre-обвязка (MapCanvas), интерполяция маркера по треку
     ├── geo/    чистая геометрия (LatLng, haversineDistanceMeters) — без React/карты
     ├── lib/    мелкие чистые утилиты без домена (formatCurrency.ts)
     └── mocks/  MSW handlers (ре-экспорт из entities/*/mocks.ts) + browser.ts
 ```
+
+## Навигация между экранами
+
+Роутера нет намеренно (см. `decisions.md`) — приложение держит «активный
+экран» в лёгком React-контексте `app/`:
+- `app/navigationContext.ts` — `NavigationContext` + хук `useNavigation()` +
+  тип `Screen` (`'order' | 'profile'`). Разбито на два файла с
+  `NavigationProvider.tsx`, чтобы не мешать компонент и хук в одном модуле
+  (`react(only-export-components)`).
+- `app/App.tsx` — `NavigationProvider` → `OrderFlowProvider` → переключатель
+  экранов. **`OrderFlowProvider` поднят сюда** (раньше был внутри
+  `OrderScreen`), чтобы XState-актор жил над переключателем и не сбрасывался
+  при уходе на профиль и обратно.
+- Экраны читают `useNavigation()` напрямую (профиль — back-кнопка,
+  `IdleOverlay` — аватар в профиль). Фичи (`features/order-flow`) про
+  навигацию не знают — это ответственность слоя экранов.
 
 `src/components/ui/` — сырые компоненты shadcn/ui (генерируются CLI,
 `npx shadcn@latest add <name>`), не трогать руками напрямую — доедаем в
@@ -68,11 +84,11 @@ payment/rating) → done → (RESET) → idle`.
   XState v5), каждый независимо переключается на строку-подтверждение
   после `SUBMIT_PAYMENT`/`SUBMIT_RATING`. `RideDoneCard.tsx` — bottom sheet
   на `done`, кнопка «Заказать снова» (`RESET`).
-- `OrderFlowDebugPanel.tsx` — dev-only (`import.meta.env.DEV`), кнопки
-  только для `idle` (кнопка «Начать заказ» — единственный вход в поток,
-  реального UI для него пока нет, известный отдельный пробел). Возвращает
-  `null` для всех остальных состояний — весь флоу от
-  `selectingDestination` до `done` покрыт реальным UI.
+
+Вход в поток (`idle`) — `screens/order/IdleOverlay.tsx` (аватар-кнопка в
+профиль + «Начать заказ» → `START_ORDER`), в слое экрана, а не фичи, т.к.
+композирует app-навигацию. **Debug-панель удалена** — весь флоу
+`idle → … → done` покрыт реальным UI, dev-only скаффолд больше не нужен.
 
 ## Как стыкуются данные
 
@@ -110,13 +126,13 @@ payment/rating) → done → (RESET) → idle`.
 `mockServiceWorker.js` (MSW) — отдельный SW, работает только в dev через
 `enableMocking()` в `main.tsx`. В проде (`import.meta.env.PROD`) MSW не
 инициализируется — бэкенд в проде отсутствует по определению проекта (см.
-CLAUDE.md), поэтому прод-сборка сейчас — чисто демонстрационный артефакт
-(`npm run build` работает, но живого API за ним нет). Реальным UI сейчас
-покрыто всё, кроме входа в поток: `selectingDestination` → ... → `done`
-целиком, включая автоматические переходы. `idle` (кнопка «Начать заказ»)
-всё ещё только через dev-only debug-панель — в проде сейчас в принципе
-негде нажать «Начать заказ». Это единственный оставшийся пробел на пути к
-прод-демо для Миши (см. последний пункт `roadmap.md`).
+CLAUDE.md). Весь флоу заказа `idle → … → done` + экран профиля теперь
+покрыты реальным UI (вход — `IdleOverlay`), dev-only debug-заглушек больше
+нет. Но сам API живёт только на MSW, а MSW сейчас гейтится на dev — значит
+голый `npm run build` даёт нерабочие запросы (профиль/классы/поиск падают).
+Реальный демо-показ Миши поэтому идёт через `npm run dev`/`preview` (где MSW
+жив) — либо на финальном пункте роадмапа снимем dev-гейт с MSW специально
+для демо-сборки. Это и есть предмет последнего пункта `roadmap.md`.
 
 ## Алиас
 
