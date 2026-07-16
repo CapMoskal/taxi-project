@@ -42,7 +42,11 @@ export const orderFlowMachine = setup({
     selectingClass: {
       on: {
         SELECT_CLASS: { actions: assign({ selectedClassId: ({ event }) => event.classId }) },
-        CONFIRM_CLASS: { target: 'searchingDriver', guard: 'hasSelectedClass' },
+        CONFIRM_CLASS: {
+          target: 'searchingDriver',
+          guard: 'hasSelectedClass',
+          actions: assign({ fare: ({ event }) => event.fare }),
+        },
         BACK_TO_DESTINATION: 'selectingDestination',
       },
     },
@@ -72,7 +76,7 @@ export const orderFlowMachine = setup({
     inRide: {
       on: {
         DRIVER_LOCATION_UPDATE: { actions: assign({ driverLocation: ({ event }) => event.coords }) },
-        RIDE_COMPLETED: { target: 'completed', actions: assign({ fare: ({ event }) => event.fare }) },
+        RIDE_COMPLETED: { target: 'completed' },
       },
     },
     completed: {

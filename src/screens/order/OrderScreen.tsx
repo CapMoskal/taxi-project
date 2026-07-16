@@ -9,7 +9,7 @@ import { SelectingDestinationControls } from '@/features/order-flow/SelectingDes
 import { ClassPickerSheet } from '@/features/order-flow/ClassPickerSheet'
 import { DriverSearchPanel } from '@/features/order-flow/DriverSearchPanel'
 import { DriverCard } from '@/features/order-flow/DriverCard'
-import { useDriverLocationSimulator } from '@/features/order-flow/useDriverLocationSimulator'
+import { useRideAutomation } from '@/features/order-flow/useRideAutomation'
 import { DEMO_PICKUP } from '@/features/order-flow/demoRoute'
 
 function OrderScreen() {
@@ -23,7 +23,7 @@ function OrderScreen() {
 function OrderScreenContent() {
   const mapRef = useRef<maplibregl.Map | null>(null)
   const snapshot = useOrderFlowSelector((state) => state)
-  const { position: driverPosition, routeBounds: driverRouteBounds } = useDriverLocationSimulator()
+  const { position: driverPosition, routeBounds: driverRouteBounds } = useRideAutomation()
 
   const markers: MapMarker[] = []
   if (snapshot.context.pickup) {

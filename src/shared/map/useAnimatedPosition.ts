@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { haversineDistanceMeters } from '@/shared/geo/distance'
 import type { LatLng } from '@/shared/geo/types'
 
@@ -7,6 +7,7 @@ export const EMPTY_POLYLINE: LatLng[] = []
 export interface UseAnimatedPositionOptions {
   durationMs: number
   playing: boolean
+  onComplete?: () => void
 }
 
 function interpolate(a: LatLng, b: LatLng, t: number): LatLng {
@@ -37,8 +38,16 @@ function positionAlongPolyline(polyline: LatLng[], progress: number): LatLng {
  * `polyline` must be a stable reference (module-level constant) — a fresh array
  * literal on every render restarts the animation each render.
  */
-export function useAnimatedPosition(polyline: LatLng[], { durationMs, playing }: UseAnimatedPositionOptions): LatLng | null {
+export function useAnimatedPosition(
+  polyline: LatLng[],
+  { durationMs, playing, onComplete }: UseAnimatedPositionOptions,
+): LatLng | null {
   const [position, setPosition] = useState<LatLng | null>(null)
+  const onCompleteRef = useRef(onComplete)
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete
+  })
 
   useEffect(() => {
     if (!playing || polyline.length < 2) {
@@ -54,6 +63,8 @@ export function useAnimatedPosition(polyline: LatLng[], { durationMs, playing }:
       setPosition(positionAlongPolyline(polyline, t))
       if (t < 1) {
         rafId = requestAnimationFrame(tick)
+      } else {
+        onCompleteRef.current?.()
       }
     }
     rafId = requestAnimationFrame(tick)

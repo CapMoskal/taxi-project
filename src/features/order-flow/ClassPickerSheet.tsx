@@ -21,6 +21,8 @@ function ClassPickerSheet() {
     pickup && destination ? { pickup, destination } : skipToken,
   )
 
+  const selectedQuote = quotes?.find((quote) => quote.classId === selectedClassId)
+
   return (
     <BottomSheet>
       <h2 className="mb-3 text-base font-medium text-foreground">Выберите класс</h2>
@@ -46,7 +48,17 @@ function ClassPickerSheet() {
         ))}
       </div>
 
-      <Button className="mt-4 w-full" disabled={!selectedClassId} onClick={() => actorRef.send({ type: 'CONFIRM_CLASS' })}>
+      <Button
+        className="mt-4 w-full"
+        disabled={!selectedQuote}
+        onClick={() =>
+          selectedQuote &&
+          actorRef.send({
+            type: 'CONFIRM_CLASS',
+            fare: { amount: selectedQuote.price, currency: selectedQuote.currency },
+          })
+        }
+      >
         Подтвердить класс
       </Button>
       <button

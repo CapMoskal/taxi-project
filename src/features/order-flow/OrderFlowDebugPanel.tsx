@@ -1,10 +1,8 @@
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useOrderFlowActorRef, useOrderFlowSelector } from './context'
-import type { FareInfo, PaymentInfo, RatingInfo } from './types'
+import type { PaymentInfo, RatingInfo } from './types'
 
-const DEMO_FARE: FareInfo = { amount: 350, currency: 'RUB' }
-const DEMO_PAYMENT: PaymentInfo = { method: 'card', amount: 350, paidAt: new Date().toISOString() }
 const DEMO_RATING: RatingInfo = { stars: 5 }
 
 function formatStateValue(value: unknown): string {
@@ -23,7 +21,11 @@ function OrderFlowDebugPanel({ className }: OrderFlowDebugPanelProps) {
   if (
     snapshot.matches('selectingDestination') ||
     snapshot.matches('selectingClass') ||
-    snapshot.matches('searchingDriver')
+    snapshot.matches('searchingDriver') ||
+    snapshot.matches('driverAssigned') ||
+    snapshot.matches('enRoute') ||
+    snapshot.matches('arrived') ||
+    snapshot.matches('inRide')
   )
     return null
 
@@ -48,44 +50,20 @@ function OrderFlowDebugPanel({ className }: OrderFlowDebugPanelProps) {
           </Button>
         )}
 
-        {snapshot.matches('driverAssigned') && (
-          <>
-            <Button size="sm" onClick={() => actorRef.send({ type: 'DRIVER_EN_ROUTE' })}>
-              Водитель выехал
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => actorRef.send({ type: 'CANCEL_RIDE' })}>
-              Отменить
-            </Button>
-          </>
-        )}
-
-        {snapshot.matches('enRoute') && (
-          <>
-            <Button size="sm" onClick={() => actorRef.send({ type: 'DRIVER_ARRIVED' })}>
-              Водитель прибыл
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => actorRef.send({ type: 'CANCEL_RIDE' })}>
-              Отменить
-            </Button>
-          </>
-        )}
-
-        {snapshot.matches('arrived') && (
-          <Button size="sm" onClick={() => actorRef.send({ type: 'START_RIDE' })}>
-            Начать поездку
-          </Button>
-        )}
-
-        {snapshot.matches('inRide') && (
-          <Button size="sm" onClick={() => actorRef.send({ type: 'RIDE_COMPLETED', fare: DEMO_FARE })}>
-            Завершить поездку
-          </Button>
-        )}
-
         {completedValue && (
           <>
             {completedValue.payment === 'pending' && (
-              <Button size="sm" onClick={() => actorRef.send({ type: 'SUBMIT_PAYMENT', payment: DEMO_PAYMENT })}>
+              <Button
+                size="sm"
+                onClick={() => {
+                  const payment: PaymentInfo = {
+                    method: 'card',
+                    amount: snapshot.context.fare?.amount ?? 0,
+                    paidAt: new Date().toISOString(),
+                  }
+                  actorRef.send({ type: 'SUBMIT_PAYMENT', payment })
+                }}
+              >
                 Оплатить
               </Button>
             )}
