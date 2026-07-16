@@ -39,25 +39,33 @@ payment/rating) → done → (RESET) → idle`.
 - `demoRoute.ts` — `DEMO_PICKUP` (фиксированная точка A, реальной геолокации
   пока нет) + `getDriverStartPoint()` (смещение для этапа `enRoute`,
   относительно pickup, не абсолютная точка на карте).
-- `useDriverLocationSimulator.ts` — rAF-трекинг водителя (использует
-  `shared/map/useAnimatedPosition`), полилинии строятся из
-  `context.pickup`/`context.destination` через `useMemo`.
+- `useRideAutomation.ts` (переименован из `useDriverLocationSimulator.ts`) —
+  единая точка автоматизации всего цикла вождения, не только rAF-трекинг
+  позиции (использует `shared/map/useAnimatedPosition`, полилинии строятся
+  из `context.pickup`/`context.destination` через `useMemo`): таймер
+  `driverAssigned → DRIVER_EN_ROUTE` (2с) и завершение каждой ноги
+  (`onComplete` от `useAnimatedPosition`) → `DRIVER_ARRIVED`/`RIDE_COMPLETED`.
+  `arrived → inRide` этим хуком не триггерится — это кнопка «Начать
+  поездку» в `DriverCard`, осознанное действие пассажира, не таймер.
 - `SelectingDestinationControls.tsx` / `ClassPickerSheet.tsx` /
   `DriverSearchPanel.tsx` — реальный UI для состояний
   `selectingDestination`/`selectingClass`/`searchingDriver` (центр-пин+drag,
   bottom-sheet с ценами, bottom-sheet с поиском водителя через
-  `entities/driver`).
+  `entities/driver`). `ClassPickerSheet` шлёт `CONFIRM_CLASS` с `fare`
+  выбранного класса — цена фиксируется здесь, `context.fare` больше не
+  переписывается при `RIDE_COMPLETED`.
 - `DriverCard.tsx` — персистентная карточка (не bottom sheet, `absolute
   top-0`), показывается поверх карты, пока `context.driver !== null` и
-  состояние — одно из `driverAssigned`/`enRoute`/`arrived`/`inRide`. Не
-  привязана к конкретному состоянию debug-панели — сосуществует с ней
-  (debug-панель снизу, карточка сверху).
-- `OrderFlowDebugPanel.tsx` — dev-only (`import.meta.env.DEV`), кнопки для
-  состояний, которые **ещё не получили настоящий UI**: `idle`,
-  `driverAssigned`, `enRoute`, `arrived`, `inRide`, `completed`, `done`.
+  состояние — одно из `driverAssigned`/`enRoute`/`arrived`/`inRide`.
+  Статус-текст под именем водителя меняется по состоянию; кнопка «Начать
+  поездку» (`arrived`) и ссылка «Отменить» (`driverAssigned`/`enRoute`)
+  живут здесь же, не в debug-панели.
+- `OrderFlowDebugPanel.tsx` — dev-only (`import.meta.env.DEV`), кнопки
+  только для состояний, которые **ещё не получили настоящий UI**: `idle`,
+  `completed`, `done` (оплата/рейтинг — следующий пункт роадмапа).
   Возвращает `null` для `selectingDestination`/`selectingClass`/
-  `searchingDriver` (там уже настоящий UI, панель не нужна и мешала бы).
-  По мере роадмапа кнопки продолжают заменяться реальными экранами.
+  `searchingDriver`/`driverAssigned`/`enRoute`/`arrived`/`inRide`. По мере
+  роадмапа кнопки продолжают заменяться реальными экранами.
 
 ## Как стыкуются данные
 
@@ -97,8 +105,11 @@ payment/rating) → done → (RESET) → idle`.
 инициализируется — бэкенд в проде отсутствует по определению проекта (см.
 CLAUDE.md), поэтому прод-сборка сейчас — чисто демонстрационный артефакт
 (`npm run build` работает, но живого API за ним нет, а debug-панель для
-непокрытых реальным UI состояний тоже пропадает — прод-сборка сейчас
-проходима только до `selectingClass` включительно).
+непокрытых реальным UI состояний тоже пропадает). Реальным UI сейчас
+покрыто `selectingDestination` → ... → `inRide` целиком (включая
+автоматические переходы); `idle` (кнопка «Начать заказ») и `completed`/`done`
+всё ещё только через debug-панель — в проде их не запустить, пока не
+появится реальный экран (следующий пункт роадмапа для `completed`).
 
 ## Алиас
 

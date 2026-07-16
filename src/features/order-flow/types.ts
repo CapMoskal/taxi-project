@@ -42,14 +42,14 @@ export type OrderFlowEvent =
   | { type: 'CONFIRM_DESTINATION' }
   | { type: 'BACK_TO_DESTINATION' }
   | { type: 'SELECT_CLASS'; classId: RideClassId }
-  | { type: 'CONFIRM_CLASS' }
+  | { type: 'CONFIRM_CLASS'; fare: FareInfo }
   | { type: 'DRIVER_FOUND'; driver: DriverInfo }
   | { type: 'SEARCH_FAILED' }
   | { type: 'DRIVER_EN_ROUTE' }
   | { type: 'DRIVER_LOCATION_UPDATE'; coords: GeoCoords }
   | { type: 'DRIVER_ARRIVED' }
   | { type: 'START_RIDE' }
-  | { type: 'RIDE_COMPLETED'; fare: FareInfo }
+  | { type: 'RIDE_COMPLETED' }
   | { type: 'SUBMIT_PAYMENT'; payment: PaymentInfo }
   | { type: 'SUBMIT_RATING'; rating: RatingInfo }
   | { type: 'CANCEL_RIDE' }
