@@ -1,5 +1,6 @@
 import { Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { InitialsAvatar } from '@/shared/ui/InitialsAvatar'
 import { useOrderFlowActorRef, useOrderFlowSelector } from './context'
 
 function DriverCard() {
@@ -26,9 +27,7 @@ function DriverCard() {
       data-slot="driver-card"
     >
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-medium text-primary-foreground">
-          {driver.name.charAt(0)}
-        </div>
+        <InitialsAvatar name={driver.name} className="h-10 w-10 text-sm" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-foreground">{driver.name}</p>
           <p className="truncate text-xs text-muted-foreground">
