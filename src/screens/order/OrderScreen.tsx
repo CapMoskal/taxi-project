@@ -9,6 +9,8 @@ import { SelectingDestinationControls } from '@/features/order-flow/SelectingDes
 import { ClassPickerSheet } from '@/features/order-flow/ClassPickerSheet'
 import { DriverSearchPanel } from '@/features/order-flow/DriverSearchPanel'
 import { DriverCard } from '@/features/order-flow/DriverCard'
+import { RideCompletionSheet } from '@/features/order-flow/RideCompletionSheet'
+import { RideDoneCard } from '@/features/order-flow/RideDoneCard'
 import { useRideAutomation } from '@/features/order-flow/useRideAutomation'
 import { DEMO_PICKUP } from '@/features/order-flow/demoRoute'
 
@@ -61,6 +63,8 @@ function OrderScreenContent() {
       <AnimatePresence>
         {snapshot.matches('selectingClass') && <ClassPickerSheet key="class-picker" />}
         {snapshot.matches('searchingDriver') && <DriverSearchPanel key="driver-search" />}
+        {snapshot.matches('completed') && <RideCompletionSheet key="ride-completion" />}
+        {snapshot.matches('done') && <RideDoneCard key="ride-done" />}
       </AnimatePresence>
 
       <DriverCard />
