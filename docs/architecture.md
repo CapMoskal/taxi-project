@@ -12,6 +12,7 @@ src/
     ├── ui/     обёртки над shadcn/ui, переиспользуемые примитивы (BottomSheet)
     ├── map/    MapLibre-обвязка (MapCanvas), интерполяция маркера по треку
     ├── geo/    чистая геометрия (LatLng, haversineDistanceMeters) — без React/карты
+    ├── lib/    мелкие чистые утилиты без домена (formatCurrency.ts)
     └── mocks/  MSW handlers (ре-экспорт из entities/*/mocks.ts) + browser.ts
 ```
 
@@ -60,12 +61,18 @@ payment/rating) → done → (RESET) → idle`.
   Статус-текст под именем водителя меняется по состоянию; кнопка «Начать
   поездку» (`arrived`) и ссылка «Отменить» (`driverAssigned`/`enRoute`)
   живут здесь же, не в debug-панели.
+- `RideCompletionSheet.tsx` — bottom sheet на `completed`. Чек (водитель,
+  расстояние через `haversineDistanceMeters`, цена), затем оплата и
+  рейтинг — оба читаются партиальным матчем по параллельным регионам
+  (`snapshot.matches({ completed: { payment: 'pending' } })`, идиоматичный
+  XState v5), каждый независимо переключается на строку-подтверждение
+  после `SUBMIT_PAYMENT`/`SUBMIT_RATING`. `RideDoneCard.tsx` — bottom sheet
+  на `done`, кнопка «Заказать снова» (`RESET`).
 - `OrderFlowDebugPanel.tsx` — dev-only (`import.meta.env.DEV`), кнопки
-  только для состояний, которые **ещё не получили настоящий UI**: `idle`,
-  `completed`, `done` (оплата/рейтинг — следующий пункт роадмапа).
-  Возвращает `null` для `selectingDestination`/`selectingClass`/
-  `searchingDriver`/`driverAssigned`/`enRoute`/`arrived`/`inRide`. По мере
-  роадмапа кнопки продолжают заменяться реальными экранами.
+  только для `idle` (кнопка «Начать заказ» — единственный вход в поток,
+  реального UI для него пока нет, известный отдельный пробел). Возвращает
+  `null` для всех остальных состояний — весь флоу от
+  `selectingDestination` до `done` покрыт реальным UI.
 
 ## Как стыкуются данные
 
@@ -104,12 +111,12 @@ payment/rating) → done → (RESET) → idle`.
 `enableMocking()` в `main.tsx`. В проде (`import.meta.env.PROD`) MSW не
 инициализируется — бэкенд в проде отсутствует по определению проекта (см.
 CLAUDE.md), поэтому прод-сборка сейчас — чисто демонстрационный артефакт
-(`npm run build` работает, но живого API за ним нет, а debug-панель для
-непокрытых реальным UI состояний тоже пропадает). Реальным UI сейчас
-покрыто `selectingDestination` → ... → `inRide` целиком (включая
-автоматические переходы); `idle` (кнопка «Начать заказ») и `completed`/`done`
-всё ещё только через debug-панель — в проде их не запустить, пока не
-появится реальный экран (следующий пункт роадмапа для `completed`).
+(`npm run build` работает, но живого API за ним нет). Реальным UI сейчас
+покрыто всё, кроме входа в поток: `selectingDestination` → ... → `done`
+целиком, включая автоматические переходы. `idle` (кнопка «Начать заказ»)
+всё ещё только через dev-only debug-панель — в проде сейчас в принципе
+негде нажать «Начать заказ». Это единственный оставшийся пробел на пути к
+прод-демо для Миши (см. последний пункт `roadmap.md`).
 
 ## Алиас
 

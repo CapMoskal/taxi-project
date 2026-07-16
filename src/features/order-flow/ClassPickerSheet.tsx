@@ -2,14 +2,9 @@ import { skipToken } from '@reduxjs/toolkit/query/react'
 import { useGetRideClassQuotesQuery } from '@/entities/ride-class/api'
 import { Button } from '@/components/ui/button'
 import { BottomSheet } from '@/shared/ui/BottomSheet'
+import { formatCurrencyRUB } from '@/shared/lib/formatCurrency'
 import { cn } from '@/lib/utils'
 import { useOrderFlowActorRef, useOrderFlowSelector } from './context'
-
-const priceFormatter = new Intl.NumberFormat('ru-RU', {
-  style: 'currency',
-  currency: 'RUB',
-  maximumFractionDigits: 0,
-})
 
 function ClassPickerSheet() {
   const actorRef = useOrderFlowActorRef()
@@ -43,7 +38,7 @@ function ClassPickerSheet() {
             )}
           >
             <span className="text-sm font-medium text-foreground">{quote.label}</span>
-            <span className="text-sm text-muted-foreground">{priceFormatter.format(quote.price)}</span>
+            <span className="text-sm text-muted-foreground">{formatCurrencyRUB(quote.price)}</span>
           </button>
         ))}
       </div>

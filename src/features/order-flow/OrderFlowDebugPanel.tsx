@@ -1,9 +1,6 @@
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useOrderFlowActorRef, useOrderFlowSelector } from './context'
-import type { PaymentInfo, RatingInfo } from './types'
-
-const DEMO_RATING: RatingInfo = { stars: 5 }
 
 function formatStateValue(value: unknown): string {
   return typeof value === 'string' ? value : JSON.stringify(value)
@@ -25,14 +22,11 @@ function OrderFlowDebugPanel({ className }: OrderFlowDebugPanelProps) {
     snapshot.matches('driverAssigned') ||
     snapshot.matches('enRoute') ||
     snapshot.matches('arrived') ||
-    snapshot.matches('inRide')
+    snapshot.matches('inRide') ||
+    snapshot.matches('completed') ||
+    snapshot.matches('done')
   )
     return null
-
-  const completedValue =
-    typeof snapshot.value === 'object' && snapshot.value !== null && 'completed' in snapshot.value
-      ? (snapshot.value as { completed: { payment: string; rating: string } }).completed
-      : undefined
 
   return (
     <div
@@ -47,37 +41,6 @@ function OrderFlowDebugPanel({ className }: OrderFlowDebugPanelProps) {
         {snapshot.matches('idle') && (
           <Button size="sm" onClick={() => actorRef.send({ type: 'START_ORDER' })}>
             Начать заказ
-          </Button>
-        )}
-
-        {completedValue && (
-          <>
-            {completedValue.payment === 'pending' && (
-              <Button
-                size="sm"
-                onClick={() => {
-                  const payment: PaymentInfo = {
-                    method: 'card',
-                    amount: snapshot.context.fare?.amount ?? 0,
-                    paidAt: new Date().toISOString(),
-                  }
-                  actorRef.send({ type: 'SUBMIT_PAYMENT', payment })
-                }}
-              >
-                Оплатить
-              </Button>
-            )}
-            {completedValue.rating === 'pending' && (
-              <Button size="sm" variant="outline" onClick={() => actorRef.send({ type: 'SUBMIT_RATING', rating: DEMO_RATING })}>
-                Оценить поездку
-              </Button>
-            )}
-          </>
-        )}
-
-        {snapshot.matches('done') && (
-          <Button size="sm" onClick={() => actorRef.send({ type: 'RESET' })}>
-            Новый заказ
           </Button>
         )}
       </div>
