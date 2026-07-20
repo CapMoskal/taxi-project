@@ -1,4 +1,4 @@
-import { ChevronLeft, CreditCard, Star, Wallet } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Clock, CreditCard, Star, Wallet } from 'lucide-react'
 import { useGetUserProfileQuery } from '@/entities/user/api'
 import { InitialsAvatar } from '@/shared/ui/InitialsAvatar'
 import { useNavigation } from '@/app/navigationContext'
@@ -61,6 +61,18 @@ function ProfileScreen() {
                 <span className="text-sm font-medium text-foreground">{paymentLabel}</span>
               </div>
             </div>
+
+            <button
+              type="button"
+              onClick={() => navigate('history')}
+              className="flex items-center justify-between rounded-xl border border-border p-3 text-left transition-colors hover:bg-muted"
+            >
+              <span className="flex items-center gap-2 text-sm text-foreground">
+                <Clock className="h-4 w-4 text-foreground" />
+                История поездок
+              </span>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </button>
           </div>
         )}
       </div>

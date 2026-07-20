@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react'
 
-export type Screen = 'order' | 'profile'
+export type Screen = 'order' | 'profile' | 'history'
 
 export interface NavigationContextValue {
   screen: Screen
