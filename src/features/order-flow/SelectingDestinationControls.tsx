@@ -1,10 +1,8 @@
-import { useEffect } from 'react'
 import type { RefObject } from 'react'
 import type maplibregl from 'maplibre-gl'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { useOrderFlowActorRef, useOrderFlowSelector } from './context'
-import { DEMO_PICKUP } from './demoRoute'
+import { useOrderFlowActorRef } from './context'
 
 interface SelectingDestinationControlsProps {
   mapRef: RefObject<maplibregl.Map | null>
@@ -13,13 +11,6 @@ interface SelectingDestinationControlsProps {
 
 function SelectingDestinationControls({ mapRef, className }: SelectingDestinationControlsProps) {
   const actorRef = useOrderFlowActorRef()
-  const pickup = useOrderFlowSelector((state) => state.context.pickup)
-
-  useEffect(() => {
-    if (!pickup) {
-      actorRef.send({ type: 'SET_PICKUP', coords: DEMO_PICKUP })
-    }
-  }, [pickup, actorRef])
 
   const handleConfirm = () => {
     const map = mapRef.current
@@ -41,6 +32,13 @@ function SelectingDestinationControls({ mapRef, className }: SelectingDestinatio
       <Button className="w-full" onClick={handleConfirm}>
         Подтвердить точку назначения
       </Button>
+      <button
+        type="button"
+        className="mt-2 w-full text-center text-sm text-muted-foreground hover:text-foreground"
+        onClick={() => actorRef.send({ type: 'BACK_TO_PICKUP' })}
+      >
+        Назад
+      </button>
     </div>
   )
 }

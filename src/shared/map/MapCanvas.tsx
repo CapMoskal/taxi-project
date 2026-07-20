@@ -14,6 +14,13 @@ export interface MapMarker {
   id: string
   position: LatLng
   color?: string
+  variant?: 'pin' | 'dot'
+}
+
+function createDotElement(): HTMLElement {
+  const el = document.createElement('div')
+  el.className = 'location-dot'
+  return el
 }
 
 interface MapCanvasProps {
@@ -121,7 +128,9 @@ function MapCanvas({
       if (existing) {
         existing.setLngLat(markerDef.position)
       } else {
-        const marker = new maplibregl.Marker({ color: markerDef.color }).setLngLat(markerDef.position).addTo(map)
+        const options: maplibregl.MarkerOptions =
+          markerDef.variant === 'dot' ? { element: createDotElement() } : { color: markerDef.color }
+        const marker = new maplibregl.Marker(options).setLngLat(markerDef.position).addTo(map)
         markersRef.current.set(markerDef.id, marker)
       }
     }
@@ -171,7 +180,7 @@ function MapCanvas({
       <div ref={containerRef} className="h-full w-full" />
       {showCenterPin && (
         <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-full">
-          <MapPin className="h-8 w-8 fill-foreground text-foreground" />
+          <MapPin className="h-8 w-8 fill-primary text-primary" />
         </div>
       )}
     </div>

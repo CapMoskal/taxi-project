@@ -50,16 +50,26 @@ src/
 
 Ядро приложения, всё вокруг одной XState-машины (`machine.ts`,
 `orderFlowMachine`, v5 `setup().createMachine()`):
-`idle → selectingDestination → selectingClass → searchingDriver →
-driverAssigned → enRoute → arrived → inRide → completed (parallel:
-payment/rating) → done → (RESET) → idle`.
+`idle → selectingPickup → selectingDestination → selectingClass →
+searchingDriver → driverAssigned → enRoute → arrived → inRide →
+completed (parallel: payment/rating) → done → (RESET) → idle`.
 
 - `context.ts` — `createActorContext(orderFlowMachine)`, провайдер
   (`OrderFlowProvider`) заворачивает `OrderScreen`, не корень приложения.
 - `types.ts` — `OrderFlowContext`/`OrderFlowEvent`. `GeoCoords` и
   `RideClassId` — **ре-экспорты**, не собственные типы (см. ниже).
-- `demoRoute.ts` — `DEMO_PICKUP` (фиксированная точка A, реальной геолокации
-  пока нет) + `getDriverStartPoint()` (смещение для этапа `enRoute`,
+  `context.userLocation` — реальный GPS («Вы здесь»), отдельно от `pickup`
+  (точка подачи A): пользователь может уточнить A drag'ом, «Я» остаётся на
+  реальной позиции (модель Яндекса).
+- `selectingPickup` — реальная геолокация: `SelectingPickupControls` через
+  `shared/lib/useCurrentPosition` (браузерный Geolocation API, secure
+  context — https/localhost) на сетлении шлёт `SET_USER_LOCATION` +
+  `SET_PICKUP` (реальные координаты или `DEMO_PICKUP`-fallback при
+  отказе/таймауте) и `jumpTo` к точке (не `flyTo` — кросс-страничная
+  анимация дала бы чтение mid-flight-центра при быстром подтверждении).
+  Пока GPS не решился — «Определяем местоположение…», кнопка скрыта.
+- `demoRoute.ts` — `DEMO_PICKUP` (fallback для точки A, когда геолокация
+  недоступна) + `getDriverStartPoint()` (смещение для этапа `enRoute`,
   относительно pickup, не абсолютная точка на карте).
 - `useRideAutomation.ts` (переименован из `useDriverLocationSimulator.ts`) —
   единая точка автоматизации всего цикла вождения, не только rAF-трекинг
@@ -69,13 +79,19 @@ payment/rating) → done → (RESET) → idle`.
   (`onComplete` от `useAnimatedPosition`) → `DRIVER_ARRIVED`/`RIDE_COMPLETED`.
   `arrived → inRide` этим хуком не триггерится — это кнопка «Начать
   поездку» в `DriverCard`, осознанное действие пассажира, не таймер.
-- `SelectingDestinationControls.tsx` / `ClassPickerSheet.tsx` /
-  `DriverSearchPanel.tsx` — реальный UI для состояний
-  `selectingDestination`/`selectingClass`/`searchingDriver` (центр-пин+drag,
-  bottom-sheet с ценами, bottom-sheet с поиском водителя через
-  `entities/driver`). `ClassPickerSheet` шлёт `CONFIRM_CLASS` с `fare`
-  выбранного класса — цена фиксируется здесь, `context.fare` больше не
-  переписывается при `RIDE_COMPLETED`.
+- `SelectingPickupControls.tsx` / `SelectingDestinationControls.tsx` /
+  `ClassPickerSheet.tsx` / `DriverSearchPanel.tsx` — реальный UI для
+  состояний `selectingPickup`/`selectingDestination`/`selectingClass`/
+  `searchingDriver` (центр-пин+drag для A и Б, bottom-sheet с ценами,
+  bottom-sheet с поиском водителя через `entities/driver`). Метки по фазам
+  (в `OrderScreen`): «Вы здесь» dot (`context.userLocation`) на обоих
+  selection-шагах; метка A (чёрный pin) — с `selectingDestination` (на
+  `selectingPickup` её роль играет центр-пин); Б — красный pin; водитель —
+  изумруд. **Центр-пин изумрудный** (`fill-primary`), а не чёрный — иначе
+  камуфлировал бы чёрную метку A (был реальный баг «A не видно»).
+  `ClassPickerSheet` шлёт `CONFIRM_CLASS` с `fare` выбранного класса — цена
+  фиксируется здесь, `context.fare` больше не переписывается при
+  `RIDE_COMPLETED`.
 - `DriverCard.tsx` — персистентная карточка (не bottom sheet, `absolute
   top-0`), показывается поверх карты, пока `context.driver !== null` и
   состояние — одно из `driverAssigned`/`enRoute`/`arrived`/`inRide`.
@@ -116,10 +132,12 @@ payment/rating) → done → (RESET) → idle`.
    контекст хранит только то, что относится к самому флоу (pickup,
    destination, выбранный класс, водитель, geo-позиция).
 5. **MapLibre** (`shared/map/MapCanvas`) — единая точка входа для всего, что
-   рисуется на карте: `markers` (массив `{id, position, color}`, diff по id —
-   pickup/destination/driver одновременно), `routeLine` (GeoJSON line-слой),
-   `routeBounds` (камера через `fitBounds`), `showCenterPin` (CSS-оверлей для
-   выбора точки). Консьюмеры не трогают `maplibregl.Map`/`Marker` напрямую.
+   рисуется на карте: `markers` (массив `{id, position, color, variant}`,
+   diff по id — user/pickup/destination/driver одновременно; `variant: 'dot'`
+   — кастомный элемент `.location-dot` для «Вы здесь», иначе teardrop-pin),
+   `routeLine` (GeoJSON line-слой), `routeBounds` (камера через `fitBounds`),
+   `showCenterPin` (CSS-оверлей для выбора точки). Консьюмеры не трогают
+   `maplibregl.Map`/`Marker` напрямую.
    **Важно:** цвета маркеров (`var(--primary)` и т.п.) резолвятся браузером
    нативно (SVG `fill`), но MapLibre `paint`-свойства слоёв (WebGL) CSS
    custom properties и `oklch()` не понимают — для линий маршрута цвет

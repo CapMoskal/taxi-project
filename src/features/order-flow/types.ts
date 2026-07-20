@@ -25,6 +25,7 @@ export interface RatingInfo {
 }
 
 export interface OrderFlowContext {
+  userLocation: GeoCoords | null
   pickup: GeoCoords | null
   destination: GeoCoords | null
   selectedClassId: RideClassId | null
@@ -37,7 +38,10 @@ export interface OrderFlowContext {
 
 export type OrderFlowEvent =
   | { type: 'START_ORDER' }
+  | { type: 'SET_USER_LOCATION'; coords: GeoCoords }
   | { type: 'SET_PICKUP'; coords: GeoCoords }
+  | { type: 'CONFIRM_PICKUP' }
+  | { type: 'BACK_TO_PICKUP' }
   | { type: 'SET_DESTINATION'; coords: GeoCoords }
   | { type: 'CONFIRM_DESTINATION' }
   | { type: 'BACK_TO_DESTINATION' }
