@@ -61,13 +61,25 @@ completed (parallel: payment/rating) → done → (RESET) → idle`.
   `context.userLocation` — реальный GPS («Вы здесь»), отдельно от `pickup`
   (точка подачи A): пользователь может уточнить A drag'ом, «Я» остаётся на
   реальной позиции (модель Яндекса).
-- `selectingPickup` — реальная геолокация: `SelectingPickupControls` через
-  `shared/lib/useCurrentPosition` (браузерный Geolocation API, secure
-  context — https/localhost) на сетлении шлёт `SET_USER_LOCATION` +
-  `SET_PICKUP` (реальные координаты или `DEMO_PICKUP`-fallback при
-  отказе/таймауте) и `jumpTo` к точке (не `flyTo` — кросс-страничная
-  анимация дала бы чтение mid-flight-центра при быстром подтверждении).
-  Пока GPS не решился — «Определяем местоположение…», кнопка скрыта.
+- `selectingPickup` — реальная геолокация, полная модель Яндекса (без
+  ручного подтверждения): `PickupResolver` монтируется на **`idle` И
+  `selectingPickup`** (не только на последнем) — геолокация должна
+  запрашиваться сразу при входе в приложение, а не после «Начать заказ».
+  Через `shared/lib/useCurrentPosition` на сетлении шлёт
+  `SET_USER_LOCATION` + `SET_PICKUP` (реальные координаты или
+  `DEMO_PICKUP`-fallback при отказе/таймауте, оба события — top-level `on`
+  машины, доступны в любом состоянии) и `jumpTo` к точке (не `flyTo` —
+  кросс-страничная анимация дала бы чтение mid-flight-центра). Как только
+  `pickup` известен и машина в `selectingPickup` — тот же компонент сразу
+  шлёт `CONFIRM_PICKUP`, без кнопки/паузы; в типичном случае (геолокация
+  успела резолвиться ещё на `idle`) пользователь вообще не видит
+  `selectingPickup`. Drag-to-refine точки A этим шагом больше не
+  поддерживается — сознательный компромисс модели авто-подтверждения.
+  **Важно про повторный заказ:** монтирование по `idle || selectingPickup`
+  (а не постоянное на весь `OrderScreen`) — не косметика, а необходимость:
+  `useCurrentPosition` дергает геолокацию на mount, и если бы компонент не
+  размонтировался на время поездки, второй заказ подряд остался бы без
+  геопозиции (запрос не переспросился бы).
 - `demoRoute.ts` — `DEMO_PICKUP` (fallback для точки A, когда геолокация
   недоступна) + `getDriverStartPoint()` (смещение для этапа `enRoute`,
   относительно pickup, не абсолютная точка на карте).
@@ -79,16 +91,20 @@ completed (parallel: payment/rating) → done → (RESET) → idle`.
   (`onComplete` от `useAnimatedPosition`) → `DRIVER_ARRIVED`/`RIDE_COMPLETED`.
   `arrived → inRide` этим хуком не триггерится — это кнопка «Начать
   поездку» в `DriverCard`, осознанное действие пассажира, не таймер.
-- `SelectingPickupControls.tsx` / `SelectingDestinationControls.tsx` /
+- `PickupResolver.tsx` / `SelectingDestinationControls.tsx` /
   `ClassPickerSheet.tsx` / `DriverSearchPanel.tsx` — реальный UI для
-  состояний `selectingPickup`/`selectingDestination`/`selectingClass`/
-  `searchingDriver` (центр-пин+drag для A и Б, bottom-sheet с ценами,
-  bottom-sheet с поиском водителя через `entities/driver`). Метки по фазам
-  (в `OrderScreen`): «Вы здесь» dot (`context.userLocation`) на обоих
-  selection-шагах; метка A (чёрный pin) — с `selectingDestination` (на
-  `selectingPickup` её роль играет центр-пин); Б — красный pin; водитель —
+  `idle`+`selectingPickup`/`selectingDestination`/`selectingClass`/
+  `searchingDriver`. Точка Б — по-прежнему центр-пин+drag+кнопка
+  подтверждения (полный UI-редизайн этого шага в стиле Яндекса — отдельный
+  пункт `roadmap.md`, не сделан). Метки по фазам (в `OrderScreen`): «Вы
+  здесь» dot (`context.userLocation`) виден уже на `idle`, как только
+  геолокация резолвилась, и остаётся на `selectingPickup`/
+  `selectingDestination`; метка A (чёрный pin) — с `selectingDestination`
+  (на `selectingPickup` центр-пин не показывается вообще — там нечего
+  уточнять, подтверждение автоматическое); Б — красный pin; водитель —
   изумруд. **Центр-пин изумрудный** (`fill-primary`), а не чёрный — иначе
   камуфлировал бы чёрную метку A (был реальный баг «A не видно»).
+  `showCenterPin` включён только на `selectingDestination`.
   `ClassPickerSheet` шлёт `CONFIRM_CLASS` с `fare` выбранного класса — цена
   фиксируется здесь, `context.fare` больше не переписывается при
   `RIDE_COMPLETED`.

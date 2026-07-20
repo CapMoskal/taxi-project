@@ -4,7 +4,7 @@ import type maplibregl from 'maplibre-gl'
 import { MapCanvas } from '@/shared/map/MapCanvas'
 import type { MapMarker } from '@/shared/map/MapCanvas'
 import { useOrderFlowSelector } from '@/features/order-flow/context'
-import { SelectingPickupControls } from '@/features/order-flow/SelectingPickupControls'
+import { PickupResolver } from '@/features/order-flow/PickupResolver'
 import { SelectingDestinationControls } from '@/features/order-flow/SelectingDestinationControls'
 import { ClassPickerSheet } from '@/features/order-flow/ClassPickerSheet'
 import { DriverSearchPanel } from '@/features/order-flow/DriverSearchPanel'
@@ -20,12 +20,13 @@ function OrderScreen() {
   const snapshot = useOrderFlowSelector((state) => state)
   const { position: driverPosition, routeBounds: driverRouteBounds } = useRideAutomation()
 
+  const isIdlePhase = snapshot.matches('idle')
   const isPickupPhase = snapshot.matches('selectingPickup')
   const isDestinationPhase = snapshot.matches('selectingDestination')
 
   const markers: MapMarker[] = []
-  // "You are here" (real GPS) — shown while choosing pickup/destination.
-  if ((isPickupPhase || isDestinationPhase) && snapshot.context.userLocation) {
+  // "You are here" (real GPS) — visible from idle onward, as soon as it resolves.
+  if ((isIdlePhase || isPickupPhase || isDestinationPhase) && snapshot.context.userLocation) {
     markers.push({ id: 'user', position: snapshot.context.userLocation, variant: 'dot' })
   }
   // Pickup A pin — hidden during selectingPickup (the center pin is the A candidate there).
@@ -53,13 +54,13 @@ function OrderScreen() {
         markers={markers}
         routeLine={routeLine}
         routeBounds={driverRouteBounds}
-        showCenterPin={isPickupPhase || isDestinationPhase}
+        showCenterPin={isDestinationPhase}
         onMapLoad={(map) => {
           mapRef.current = map
         }}
       />
 
-      {isPickupPhase && <SelectingPickupControls mapRef={mapRef} />}
+      {(isIdlePhase || isPickupPhase) && <PickupResolver mapRef={mapRef} />}
       {isDestinationPhase && <SelectingDestinationControls mapRef={mapRef} />}
 
       <AnimatePresence>
