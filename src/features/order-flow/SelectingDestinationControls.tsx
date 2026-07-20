@@ -32,13 +32,6 @@ function SelectingDestinationControls({ mapRef, className }: SelectingDestinatio
       <Button className="w-full" onClick={handleConfirm}>
         Подтвердить точку назначения
       </Button>
-      <button
-        type="button"
-        className="mt-2 w-full text-center text-sm text-muted-foreground hover:text-foreground"
-        onClick={() => actorRef.send({ type: 'BACK_TO_PICKUP' })}
-      >
-        Назад
-      </button>
     </div>
   )
 }

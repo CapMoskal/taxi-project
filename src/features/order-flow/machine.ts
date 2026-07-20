@@ -30,14 +30,19 @@ export const orderFlowMachine = setup({
   id: 'orderFlow',
   initial: 'idle',
   context: initialContext,
+  // Available in every state so PickupResolver can seed userLocation/pickup
+  // as soon as geolocation settles, whether that happens on `idle` or
+  // `selectingPickup` — see docs/decisions.md.
+  on: {
+    SET_USER_LOCATION: { actions: assign({ userLocation: ({ event }) => event.coords }) },
+    SET_PICKUP: { actions: assign({ pickup: ({ event }) => event.coords }) },
+  },
   states: {
     idle: {
       on: { START_ORDER: 'selectingPickup' },
     },
     selectingPickup: {
       on: {
-        SET_USER_LOCATION: { actions: assign({ userLocation: ({ event }) => event.coords }) },
-        SET_PICKUP: { actions: assign({ pickup: ({ event }) => event.coords }) },
         CONFIRM_PICKUP: { target: 'selectingDestination', guard: 'hasPickup' },
         CANCEL_RIDE: { target: 'idle', actions: 'resetOrder' },
       },
@@ -46,7 +51,6 @@ export const orderFlowMachine = setup({
       on: {
         SET_DESTINATION: { actions: assign({ destination: ({ event }) => event.coords }) },
         CONFIRM_DESTINATION: { target: 'selectingClass', guard: 'hasDestination' },
-        BACK_TO_PICKUP: 'selectingPickup',
       },
     },
     selectingClass: {
