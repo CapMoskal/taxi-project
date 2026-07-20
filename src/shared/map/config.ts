@@ -1,4 +1,4 @@
-const MAPTILER_KEY = import.meta.env.VITE_MAPTILER_KEY
+export const MAPTILER_KEY = import.meta.env.VITE_MAPTILER_KEY
 
 if (import.meta.env.DEV && !MAPTILER_KEY) {
   console.warn('[shared/map] VITE_MAPTILER_KEY не задан — карта не загрузится. Скопируй .env.example в .env.')

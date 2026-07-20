@@ -7,7 +7,7 @@ import type { MapMarker } from '@/shared/map/MapCanvas'
 import { roadOrStraight, useGetRouteQuery } from '@/shared/map/routingApi'
 import { useOrderFlowSelector } from '@/features/order-flow/context'
 import { PickupResolver } from '@/features/order-flow/PickupResolver'
-import { SelectingDestinationControls } from '@/features/order-flow/SelectingDestinationControls'
+import { DestinationSheet } from '@/features/order-flow/DestinationSheet'
 import { ClassPickerSheet } from '@/features/order-flow/ClassPickerSheet'
 import { DriverSearchPanel } from '@/features/order-flow/DriverSearchPanel'
 import { DriverCard } from '@/features/order-flow/DriverCard'
@@ -63,7 +63,7 @@ function OrderScreen() {
       />
 
       {(isIdlePhase || isPickupPhase) && <PickupResolver mapRef={mapRef} />}
-      {isDestinationPhase && <SelectingDestinationControls mapRef={mapRef} />}
+      {isDestinationPhase && <DestinationSheet mapRef={mapRef} />}
 
       <AnimatePresence>
         {snapshot.matches('idle') && <IdleOverlay key="idle-overlay" />}

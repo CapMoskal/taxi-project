@@ -91,23 +91,39 @@ completed (parallel: payment/rating) → done → (RESET) → idle`.
   (`onComplete` от `useAnimatedPosition`) → `DRIVER_ARRIVED`/`RIDE_COMPLETED`.
   `arrived → inRide` этим хуком не триггерится — это кнопка «Начать
   поездку» в `DriverCard`, осознанное действие пассажира, не таймер.
-- `PickupResolver.tsx` / `SelectingDestinationControls.tsx` /
-  `ClassPickerSheet.tsx` / `DriverSearchPanel.tsx` — реальный UI для
+- `PickupResolver.tsx` / `DestinationSheet.tsx` / `ClassPickerSheet.tsx` /
+  `DriverSearchPanel.tsx` — реальный UI для
   `idle`+`selectingPickup`/`selectingDestination`/`selectingClass`/
-  `searchingDriver`. Точка Б — по-прежнему центр-пин+drag+кнопка
-  подтверждения (полный UI-редизайн этого шага в стиле Яндекса — отдельный
-  пункт `roadmap.md`, не сделан). Метки по фазам (в `OrderScreen`): «Вы
-  здесь» dot (`context.userLocation`) виден уже на `idle`, как только
-  геолокация резолвилась, и остаётся на `selectingPickup`/
-  `selectingDestination`; метка A (чёрный pin) — с `selectingDestination`
-  (на `selectingPickup` центр-пин не показывается вообще — там нечего
-  уточнять, подтверждение автоматическое); Б — красный pin; водитель —
-  изумруд. **Центр-пин изумрудный** (`fill-primary`), а не чёрный — иначе
-  камуфлировал бы чёрную метку A (был реальный баг «A не видно»).
-  `showCenterPin` включён только на `selectingDestination`.
-  `ClassPickerSheet` шлёт `CONFIRM_CLASS` с `fare` выбранного класса — цена
-  фиксируется здесь, `context.fare` больше не переписывается при
-  `RIDE_COMPLETED`.
+  `searchingDriver`. Метки по фазам (в `OrderScreen`): «Вы здесь» dot
+  (`context.userLocation`) виден уже на `idle`, как только геолокация
+  резолвилась, и остаётся на `selectingPickup`/`selectingDestination`;
+  метка A (чёрный pin) — с `selectingDestination` (на `selectingPickup`
+  центр-пин не показывается вообще — там нечего уточнять, подтверждение
+  автоматическое); Б — красный pin; водитель — изумруд. **Центр-пин
+  изумрудный** (`fill-primary`), а не чёрный — иначе камуфлировал бы
+  чёрную метку A (был реальный баг «A не видно»). `showCenterPin` включён
+  только на `selectingDestination` (центр-пин + drag карты остаются
+  механизмом выбора точки — `DestinationSheet` добавляет поиск/список
+  поверх, не заменяет). `ClassPickerSheet` шлёт `CONFIRM_CLASS` с `fare`
+  выбранного класса — цена фиксируется здесь, `context.fare` больше не
+  переписывается при `RIDE_COMPLETED`.
+- **`DestinationSheet.tsx`** — свайпаемая плашка выбора точки Б (в стиле
+  Яндекса): инпут адреса + список (недавние адреса или live-поиск), сама
+  плашка тянется пальцем (Motion `drag="y"`, снап по velocity/позиции
+  между `peek`/`expanded`) и **отъезжает вниз (`retreated`)**, пока
+  пользователь двигает/зумит карту (`map.on('dragstart'|'zoomstart')`,
+  гейт по `e.originalEvent` — отличает жест пользователя от программного
+  `jumpTo`), возвращаясь в состояние **до** взаимодействия (не всегда в
+  `peek`) на `moveend`. Тап по адресу (недавнему или из поиска) — `jumpTo`
+  карты на точку (не `flyTo`, тот же mid-flight-хазард, см. ниже) и сворачивает
+  плашку в `peek`; подтверждение по-прежнему читает `map.getCenter()` —
+  логика не изменилась, только источник координат (drag карты **или**
+  выбор адреса, оба сходятся в один и тот же центр карты). Reverse-geocode
+  адреса центра карты на **user-initiated** `moveend` обновляет текст
+  инпута (гейт по `isInputFocusedRef` — не перетирает то, что пользователь
+  печатает). **Адреса не хранятся в XState-контексте** — только
+  `LatLng`; текстовые адреса (A и Б) — RTK Query кэш (`geocodingApi`),
+  читаются прямо в компоненте.
 - `DriverCard.tsx` — персистентная карточка (не bottom sheet, `absolute
   top-0`), показывается поверх карты, пока `context.driver !== null` и
   состояние — одно из `driverAssigned`/`enRoute`/`arrived`/`inRide`.
@@ -139,7 +155,13 @@ completed (parallel: payment/rating) → done → (RESET) → idle`.
    dev, и в prod. RTK Query выбран ради кеша-по-аргументам и дедупа: линия
    маршрута (`OrderScreen`) и анимация водителя (`useRideAutomation`)
    запрашивают один и тот же `pickup→destination` и схлопываются в один
-   сетевой запрос. См. `decisions.md`.
+   сетевой запрос. См. `decisions.md`. **`shared/map/geocodingApi.ts`** —
+   тот же паттерн, для MapTiler Geocoding (forward-поиск адреса +
+   reverse-геокодинг), общий ключ с тайлами (`shared/map/config.ts`
+   экспортирует `MAPTILER_KEY`). `entities/recent-place/` — наоборот,
+   обычная mock-сущность (недавние адреса, `/api/recent-places`), не
+   путать с geocoding: recent-place — «наши» данные через MSW, geocoding —
+   реальный внешний сервис.
 2. **MSW** перехватывает запросы RTK Query к `/api/*` на уровне Service
    Worker (`src/shared/mocks/browser.ts`, хендлеры собираются в
    `src/shared/mocks/handlers.ts` ре-экспортом из `entities/*/mocks.ts` —
