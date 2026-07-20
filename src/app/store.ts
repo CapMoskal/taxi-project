@@ -3,6 +3,7 @@ import { rideClassApi } from '@/entities/ride-class/api'
 import { driverApi } from '@/entities/driver/api'
 import { userApi } from '@/entities/user/api'
 import { rideHistoryApi } from '@/entities/ride-history/api'
+import { routingApi } from '@/shared/map/routingApi'
 
 export const store = configureStore({
   reducer: {
@@ -10,6 +11,7 @@ export const store = configureStore({
     [driverApi.reducerPath]: driverApi.reducer,
     [userApi.reducerPath]: userApi.reducer,
     [rideHistoryApi.reducerPath]: rideHistoryApi.reducer,
+    [routingApi.reducerPath]: routingApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().concat(
@@ -17,6 +19,7 @@ export const store = configureStore({
       driverApi.middleware,
       userApi.middleware,
       rideHistoryApi.middleware,
+      routingApi.middleware,
     ),
 })
 

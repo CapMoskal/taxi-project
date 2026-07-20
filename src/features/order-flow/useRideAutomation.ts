@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
+import { skipToken } from '@reduxjs/toolkit/query/react'
 import { EMPTY_POLYLINE, useAnimatedPosition } from '@/shared/map/useAnimatedPosition'
+import { roadOrStraight, useGetRouteQuery } from '@/shared/map/routingApi'
 import { useOrderFlowActorRef, useOrderFlowSelector } from './context'
 import { getDriverStartPoint, LEG_DURATION_MS } from './demoRoute'
 import type { GeoCoords } from './types'
@@ -26,13 +28,26 @@ export function useRideAutomation(): RideAutomation {
     return () => clearTimeout(timeoutId)
   }, [isDriverAssigned, actorRef])
 
+  const driverStart = useMemo(() => (pickup ? getDriverStartPoint(pickup) : null), [pickup])
+
+  // Fetch both legs' road geometry as soon as A+B are known (selectingClass) —
+  // well before either leg animates — so the cached route is ready and the
+  // animation never swaps polyline mid-leg (which would restart it). Falls back
+  // to a straight line while pending or if OSRM is unreachable.
+  const { data: enRouteRoute } = useGetRouteQuery(
+    driverStart && pickup && destination ? { from: driverStart, to: pickup } : skipToken,
+  )
+  const { data: inRideRoute } = useGetRouteQuery(
+    pickup && destination ? { from: pickup, to: destination } : skipToken,
+  )
+
   const enRoutePolyline = useMemo(
-    () => (pickup ? [getDriverStartPoint(pickup), pickup] : EMPTY_POLYLINE),
-    [pickup],
+    () => (driverStart && pickup ? roadOrStraight(enRouteRoute, driverStart, pickup) : EMPTY_POLYLINE),
+    [enRouteRoute, driverStart, pickup],
   )
   const inRidePolyline = useMemo(
-    () => (pickup && destination ? [pickup, destination] : EMPTY_POLYLINE),
-    [pickup, destination],
+    () => (pickup && destination ? roadOrStraight(inRideRoute, pickup, destination) : EMPTY_POLYLINE),
+    [inRideRoute, pickup, destination],
   )
 
   const polyline = isEnRoute ? enRoutePolyline : isInRide ? inRidePolyline : EMPTY_POLYLINE
