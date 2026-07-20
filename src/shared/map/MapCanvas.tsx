@@ -152,7 +152,7 @@ function MapCanvas({
         id: ROUTE_LINE_SOURCE_ID,
         type: 'line',
         source: ROUTE_LINE_SOURCE_ID,
-        paint: { 'line-color': resolveCssColor('var(--foreground)'), 'line-width': 3, 'line-dasharray': [2, 2] },
+        paint: { 'line-color': resolveCssColor('var(--foreground)'), 'line-width': 4 },
       })
     }
 

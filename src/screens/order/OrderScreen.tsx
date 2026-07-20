@@ -1,8 +1,10 @@
 import { useRef } from 'react'
+import { skipToken } from '@reduxjs/toolkit/query/react'
 import { AnimatePresence } from 'motion/react'
 import type maplibregl from 'maplibre-gl'
 import { MapCanvas } from '@/shared/map/MapCanvas'
 import type { MapMarker } from '@/shared/map/MapCanvas'
+import { roadOrStraight, useGetRouteQuery } from '@/shared/map/routingApi'
 import { useOrderFlowSelector } from '@/features/order-flow/context'
 import { PickupResolver } from '@/features/order-flow/PickupResolver'
 import { SelectingDestinationControls } from '@/features/order-flow/SelectingDestinationControls'
@@ -40,10 +42,10 @@ function OrderScreen() {
     markers.push({ id: 'driver', position: driverPosition, color: 'var(--primary)' })
   }
 
-  const routeLine =
-    snapshot.context.pickup && snapshot.context.destination
-      ? [snapshot.context.pickup, snapshot.context.destination]
-      : null
+  const { pickup, destination } = snapshot.context
+  // Deduped with useRideAutomation's inRide fetch (same args → one OSRM request).
+  const { data: routeData } = useGetRouteQuery(pickup && destination ? { from: pickup, to: destination } : skipToken)
+  const routeLine = pickup && destination ? roadOrStraight(routeData, pickup, destination) : null
 
   return (
     <div className="relative h-dvh w-full overflow-hidden">

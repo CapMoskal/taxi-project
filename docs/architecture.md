@@ -132,12 +132,22 @@ completed (parallel: payment/rating) → done → (RESET) → idle`.
 1. **RTK Query** — единственный источник сетевых данных. Компоненты не дергают
    `fetch` напрямую. Эндпоинты живут рядом с сущностью в `entities/*/api.ts`
    (пример: `entities/ride-class/api.ts`, `useGetRideClassQuotesQuery`).
-2. **MSW** перехватывает все запросы RTK Query на уровне Service Worker
-   (`src/shared/mocks/browser.ts`, хендлеры собираются в
+   **Исключение — `shared/map/routingApi.ts`**: тоже RTK Query, но с
+   реальным внешним `baseUrl` (`router.project-osrm.org`), а не `/api`. Это
+   не доменная сущность и не мокнутый эндпоинт (нет `mocks.ts`), а
+   инфраструктура карты, как тайлы MapTiler — реальный сервис, живой и в
+   dev, и в prod. RTK Query выбран ради кеша-по-аргументам и дедупа: линия
+   маршрута (`OrderScreen`) и анимация водителя (`useRideAutomation`)
+   запрашивают один и тот же `pickup→destination` и схлопываются в один
+   сетевой запрос. См. `decisions.md`.
+2. **MSW** перехватывает запросы RTK Query к `/api/*` на уровне Service
+   Worker (`src/shared/mocks/browser.ts`, хендлеры собираются в
    `src/shared/mocks/handlers.ts` ре-экспортом из `entities/*/mocks.ts` —
    конвенция из `.claude/rules/msw-mocking.md`). Включается только в dev
-   (`import.meta.env.PROD` гейт в `main.tsx`). Фронт не знает, что бэкенда
-   нет — честные loading/error state (см. `ClassPickerSheet.tsx`).
+   (`import.meta.env.PROD` гейт в `main.tsx`), настроен
+   `onUnhandledRequest: 'bypass'` — реальные внешние вызовы (OSRM, тайлы)
+   проходят насквозь, не мокаются. Фронт не знает, что бэкенда нет —
+   честные loading/error state (см. `ClassPickerSheet.tsx`).
 3. **`app/store.ts`** регистрирует reducer+middleware каждого RTK Query
    api-slice (`[api.reducerPath]: api.reducer`,
    `getDefaultMiddleware().concat(api.middleware)`) — при добавлении нового
@@ -151,13 +161,18 @@ completed (parallel: payment/rating) → done → (RESET) → idle`.
    рисуется на карте: `markers` (массив `{id, position, color, variant}`,
    diff по id — user/pickup/destination/driver одновременно; `variant: 'dot'`
    — кастомный элемент `.location-dot` для «Вы здесь», иначе teardrop-pin),
-   `routeLine` (GeoJSON line-слой), `routeBounds` (камера через `fitBounds`),
-   `showCenterPin` (CSS-оверлей для выбора точки). Консьюмеры не трогают
-   `maplibregl.Map`/`Marker` напрямую.
+   `routeLine` (GeoJSON line-слой, сплошная тёмная линия), `routeBounds`
+   (камера через `fitBounds`), `showCenterPin` (CSS-оверлей для выбора
+   точки). Консьюмеры не трогают `maplibregl.Map`/`Marker` напрямую.
    **Важно:** цвета маркеров (`var(--primary)` и т.п.) резолвятся браузером
    нативно (SVG `fill`), но MapLibre `paint`-свойства слоёв (WebGL) CSS
    custom properties и `oklch()` не понимают — для линий маршрута цвет
    квантуется через `resolveCssColor()` (canvas 1×1), см. `decisions.md`.
+   `routeLine` — реальная road-геометрия из `routingApi` (OSRM), не прямая
+   A→Б; та же геометрия кормит анимацию маркера в `useRideAutomation`
+   (`useAnimatedPosition` интерполирует по многоточечной полилинии). Обе
+   ноги (подъезд водителя `enRoute` и поездка `inRide`) едут по дорогам.
+   Fallback на прямую линию, если OSRM недоступен — `roadOrStraight()`.
 
 ## PWA / MSW gate
 
