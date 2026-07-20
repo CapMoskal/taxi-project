@@ -2,6 +2,7 @@ import { OrderScreen } from '@/screens/order/OrderScreen'
 import { ProfileScreen } from '@/screens/profile/ProfileScreen'
 import { RideHistoryScreen } from '@/screens/history/RideHistoryScreen'
 import { OrderFlowProvider } from '@/features/order-flow/context'
+import { OfflineBanner } from '@/shared/ui/OfflineBanner'
 import { NavigationProvider } from './NavigationProvider'
 import { useNavigation } from './navigationContext'
 
@@ -16,6 +17,7 @@ function App() {
   return (
     <NavigationProvider>
       <OrderFlowProvider>
+        <OfflineBanner />
         <AppScreens />
       </OrderFlowProvider>
     </NavigationProvider>

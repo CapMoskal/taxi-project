@@ -128,16 +128,28 @@ payment/rating) → done → (RESET) → idle`.
 ## PWA / MSW gate
 
 `vite-plugin-pwa` собирает манифест и service worker для прод-сборки.
+Манифест (`vite.config.ts`): «Такси», `theme_color: #059669` (изумруд,
+бренд), `background_color: #fff`, `standalone`, `portrait`, иконки
+192/512/512-maskable из `public/` (изумрудный фон + белый глиф машины,
+сгенерированы одноразовым скриптом; фиолетовый favicon от скаффолда заменён
+на изумрудный). apple-touch-icon и apple-теги — в `index.html` (плагин их не
+инжектит). Offline трёхуровневый: precache оболочки
+(`workbox.navigateFallback` + `globPatterns`), runtime-кэш тайлов MapTiler
+(`runtimeCaching`, StaleWhileRevalidate — уже виденные участки карты
+доступны офлайн), и индикатор `shared/ui/OfflineBanner` (по
+`shared/lib/useOnlineStatus`, `navigator.onLine`) поверх любого экрана.
+
 `mockServiceWorker.js` (MSW) — отдельный SW, работает только в dev через
 `enableMocking()` в `main.tsx`. В проде (`import.meta.env.PROD`) MSW не
 инициализируется — бэкенд в проде отсутствует по определению проекта (см.
-CLAUDE.md). Весь флоу заказа `idle → … → done` + экран профиля теперь
-покрыты реальным UI (вход — `IdleOverlay`), dev-only debug-заглушек больше
-нет. Но сам API живёт только на MSW, а MSW сейчас гейтится на dev — значит
-голый `npm run build` даёт нерабочие запросы (профиль/классы/поиск падают).
-Реальный демо-показ Миши поэтому идёт через `npm run dev`/`preview` (где MSW
-жив) — либо на финальном пункте роадмапа снимем dev-гейт с MSW специально
-для демо-сборки. Это и есть предмет последнего пункта `roadmap.md`.
+CLAUDE.md). PWA-SW (generateSW) — наоборот, только прод; dev-режим плагина не
+включаем, так что MSW-SW и PWA-SW не пересекаются по средам. Весь флоу
+заказа `idle → … → done` + профиль + история покрыты реальным UI.
+**Но:** сам API живёт только на MSW, а MSW гейтится на dev — значит голый
+`npm run build` даёт нерабочие запросы (профиль/классы/поиск/история
+падают). Реальный демо-показ Миши поэтому идёт через `npm run dev`/`preview`
+(где MSW жив) — либо на финальном пункте роадмапа снимем dev-гейт с MSW
+специально для демо-сборки. Это предмет последнего пункта `roadmap.md`.
 
 ## Алиас
 
