@@ -4,6 +4,7 @@ import type maplibregl from 'maplibre-gl'
 import { MapCanvas } from '@/shared/map/MapCanvas'
 import type { MapMarker } from '@/shared/map/MapCanvas'
 import { useOrderFlowSelector } from '@/features/order-flow/context'
+import { SelectingPickupControls } from '@/features/order-flow/SelectingPickupControls'
 import { SelectingDestinationControls } from '@/features/order-flow/SelectingDestinationControls'
 import { ClassPickerSheet } from '@/features/order-flow/ClassPickerSheet'
 import { DriverSearchPanel } from '@/features/order-flow/DriverSearchPanel'
@@ -19,8 +20,16 @@ function OrderScreen() {
   const snapshot = useOrderFlowSelector((state) => state)
   const { position: driverPosition, routeBounds: driverRouteBounds } = useRideAutomation()
 
+  const isPickupPhase = snapshot.matches('selectingPickup')
+  const isDestinationPhase = snapshot.matches('selectingDestination')
+
   const markers: MapMarker[] = []
-  if (snapshot.context.pickup) {
+  // "You are here" (real GPS) — shown while choosing pickup/destination.
+  if ((isPickupPhase || isDestinationPhase) && snapshot.context.userLocation) {
+    markers.push({ id: 'user', position: snapshot.context.userLocation, variant: 'dot' })
+  }
+  // Pickup A pin — hidden during selectingPickup (the center pin is the A candidate there).
+  if (snapshot.context.pickup && !isPickupPhase) {
     markers.push({ id: 'pickup', position: snapshot.context.pickup, color: 'var(--foreground)' })
   }
   if (snapshot.context.destination) {
@@ -44,13 +53,14 @@ function OrderScreen() {
         markers={markers}
         routeLine={routeLine}
         routeBounds={driverRouteBounds}
-        showCenterPin={snapshot.matches('selectingDestination')}
+        showCenterPin={isPickupPhase || isDestinationPhase}
         onMapLoad={(map) => {
           mapRef.current = map
         }}
       />
 
-      {snapshot.matches('selectingDestination') && <SelectingDestinationControls mapRef={mapRef} />}
+      {isPickupPhase && <SelectingPickupControls mapRef={mapRef} />}
+      {isDestinationPhase && <SelectingDestinationControls mapRef={mapRef} />}
 
       <AnimatePresence>
         {snapshot.matches('idle') && <IdleOverlay key="idle-overlay" />}

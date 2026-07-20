@@ -128,3 +128,32 @@
     @apply font-sans;
     }
 }
+
+/* MapLibre "you are here" marker (variant: 'dot' in MapCanvas) */
+.location-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: var(--primary);
+  border: 3px solid var(--background);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+.location-dot::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 9999px;
+  background: var(--primary);
+  opacity: 0.35;
+  animation: location-pulse 2s ease-out infinite;
+}
+@keyframes location-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.35;
+  }
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}

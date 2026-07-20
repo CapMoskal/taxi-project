@@ -2,6 +2,7 @@ import { assign, setup } from 'xstate'
 import type { OrderFlowContext, OrderFlowEvent } from './types'
 
 const initialContext: OrderFlowContext = {
+  userLocation: null,
   pickup: null,
   destination: null,
   selectedClassId: null,
@@ -21,6 +22,7 @@ export const orderFlowMachine = setup({
     resetOrder: assign(() => initialContext),
   },
   guards: {
+    hasPickup: ({ context }) => context.pickup !== null,
     hasDestination: ({ context }) => context.destination !== null,
     hasSelectedClass: ({ context }) => context.selectedClassId !== null,
   },
@@ -30,13 +32,21 @@ export const orderFlowMachine = setup({
   context: initialContext,
   states: {
     idle: {
-      on: { START_ORDER: 'selectingDestination' },
+      on: { START_ORDER: 'selectingPickup' },
+    },
+    selectingPickup: {
+      on: {
+        SET_USER_LOCATION: { actions: assign({ userLocation: ({ event }) => event.coords }) },
+        SET_PICKUP: { actions: assign({ pickup: ({ event }) => event.coords }) },
+        CONFIRM_PICKUP: { target: 'selectingDestination', guard: 'hasPickup' },
+        CANCEL_RIDE: { target: 'idle', actions: 'resetOrder' },
+      },
     },
     selectingDestination: {
       on: {
-        SET_PICKUP: { actions: assign({ pickup: ({ event }) => event.coords }) },
         SET_DESTINATION: { actions: assign({ destination: ({ event }) => event.coords }) },
         CONFIRM_DESTINATION: { target: 'selectingClass', guard: 'hasDestination' },
+        BACK_TO_PICKUP: 'selectingPickup',
       },
     },
     selectingClass: {
