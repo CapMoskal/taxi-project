@@ -39,8 +39,8 @@ npm run preview  # прод-сборка локально
 
 - `docs/architecture.md` — слои (app/entities/features/screens/shared), как
   стыкуются RTK Query / XState / MSW / MapLibre.
-- `docs/decisions.md` — ADR-лог, включая грабли скаффолда (Vite 8→6, shadcn
-  alias-баг).
+- `docs/decisions.md` — ADR-лог по фичам. Грабли скаффолда (Vite 8→6, shadcn
+  alias-баг и т.п.) — в `docs/_archive/decisions-scaffold.md`.
 - `docs/roadmap.md` — фича-за-фичей план, меняется по ходу.
 - `.claude/rules/design-tokens.md` — «светлый минимализм», изумрудный
   `--primary` (зафиксировано), скругления/шрифт — дефолт preset shadcn/ui.
