@@ -5,9 +5,9 @@
 ```
 src/
 ├── app/        store (RTK), корневой App, провайдеры, навигация
-├── entities/   доменные сущности: ride-class, driver, user (готово), order — по мере роадмапа
+├── entities/   доменные сущности: ride-class, driver, user, ride-history (готово) — по мере роадмапа
 ├── features/   флоу и юзкейсы: order-flow (XState-машина + экраны состояний)
-├── screens/    экраны-контейнеры: order (карта+флоу), profile
+├── screens/    экраны-контейнеры: order (карта+флоу), profile, history
 └── shared/
     ├── ui/     обёртки над shadcn/ui, переиспользуемые примитивы (BottomSheet, InitialsAvatar)
     ├── map/    MapLibre-обвязка (MapCanvas), интерполяция маркера по треку
@@ -21,16 +21,21 @@ src/
 Роутера нет намеренно (см. `decisions.md`) — приложение держит «активный
 экран» в лёгком React-контексте `app/`:
 - `app/navigationContext.ts` — `NavigationContext` + хук `useNavigation()` +
-  тип `Screen` (`'order' | 'profile'`). Разбито на два файла с
+  тип `Screen` (`'order' | 'profile' | 'history'`). Разбито на два файла с
   `NavigationProvider.tsx`, чтобы не мешать компонент и хук в одном модуле
   (`react(only-export-components)`).
 - `app/App.tsx` — `NavigationProvider` → `OrderFlowProvider` → переключатель
   экранов. **`OrderFlowProvider` поднят сюда** (раньше был внутри
   `OrderScreen`), чтобы XState-актор жил над переключателем и не сбрасывался
   при уходе на профиль и обратно.
-- Экраны читают `useNavigation()` напрямую (профиль — back-кнопка,
-  `IdleOverlay` — аватар в профиль). Фичи (`features/order-flow`) про
-  навигацию не знают — это ответственность слоя экранов.
+- Экраны читают `useNavigation()` напрямую (профиль — back-кнопка + строка в
+  историю, `IdleOverlay` — аватар в профиль, история — back в профиль).
+  Фичи (`features/order-flow`) про навигацию не знают — это ответственность
+  слоя экранов.
+- **Навигация плоская, без back-стека**: `screen` — одно значение, каждый
+  экран хардкодит своего родителя для back (профиль→заказ, история→профиль).
+  Граф пока линейный (заказ→профиль→история); если появятся несколько путей
+  в один экран — добавим стек тогда, сейчас это лишняя сложность.
 
 `src/components/ui/` — сырые компоненты shadcn/ui (генерируются CLI,
 `npx shadcn@latest add <name>`), не трогать руками напрямую — доедаем в
