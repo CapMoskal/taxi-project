@@ -78,8 +78,14 @@ function DestinationSheet({ mapRef }: DestinationSheetProps) {
       prevSnapRef.current = snapRef.current
       setSnap('retreated')
     }
-    const onMoveEnd = (e: { originalEvent?: unknown }) => {
-      if (!e.originalEvent) return
+    // No `originalEvent` gate here: after a fast drag, MapLibre's inertia
+    // deceleration fires the settling `moveend` programmatically (no
+    // originalEvent) — gating on it would strand the sheet in `retreated`
+    // forever on any flick-style swipe. `snapRef` alone is enough to ignore
+    // moveend from our own programmatic jumpTo (snap never became 'retreated'
+    // for those).
+    const onMoveEnd = () => {
+      if (snapRef.current !== 'retreated') return
       setSnap(prevSnapRef.current)
       const center = map.getCenter()
       setDraggedCenter({ lat: center.lat, lng: center.lng })

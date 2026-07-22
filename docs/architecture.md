@@ -183,9 +183,10 @@ completed (parallel: payment/rating) → done → (RESET) → idle`.
    рисуется на карте: `markers` (массив `{id, position, color, variant}`,
    diff по id — user/pickup/destination/driver одновременно; `variant: 'dot'`
    — кастомный элемент `.location-dot` для «Вы здесь», иначе teardrop-pin),
-   `routeLine` (GeoJSON line-слой, сплошная тёмная линия), `routeBounds`
-   (камера через `fitBounds`), `showCenterPin` (CSS-оверлей для выбора
-   точки). Консьюмеры не трогают `maplibregl.Map`/`Marker` напрямую.
+   `routeLine` (GeoJSON line-слой, сплошная тёмная линия), `showCenterPin`
+   (CSS-оверлей для выбора точки). Камера в `MapCanvas` **не управляется**
+   — это отдельная ответственность, см. `useMapCameraFollow` ниже.
+   Консьюмеры не трогают `maplibregl.Map`/`Marker` напрямую.
    **Важно:** цвета маркеров (`var(--primary)` и т.п.) резолвятся браузером
    нативно (SVG `fill`), но MapLibre `paint`-свойства слоёв (WebGL) CSS
    custom properties и `oklch()` не понимают — для линий маршрута цвет
@@ -195,6 +196,18 @@ completed (parallel: payment/rating) → done → (RESET) → idle`.
    (`useAnimatedPosition` интерполирует по многоточечной полилинии). Обе
    ноги (подъезд водителя `enRoute` и поездка `inRide`) едут по дорогам.
    Fallback на прямую линию, если OSRM недоступен — `roadOrStraight()`.
+6. **`shared/map/useMapCameraFollow`** — камера, которая следит за поездкой
+   (вызывается из `OrderScreen`, не из `MapCanvas`). Throttled `fitBounds`
+   (~раз в секунду, не на каждый кадр) по кадру, который зависит от фазы:
+   такси + следующая точка в движении (`enRoute`: такси+A, `inRide`:
+   такси+Б — не всегда Б, см. `decisions.md`), [A, Б] на выборе класса и
+   ожидании водителя. Ручной drag/zoom/rotate пользователя (гейт на
+   `e.originalEvent`) приостанавливает слежение; автовозврат через 4с
+   бездействия (`moveend`, **без** гейта на `originalEvent` — инерция
+   MapLibre после драга шлёт финальный `moveend` программно, без
+   `originalEvent`, гейт бы просто не пустил автовозврат). Кнопки
+   «recenter» нет. `padding` разный по фазе — под нижний шит
+   (`selectingClass`/`searchingDriver`) или под `DriverCard` сверху.
 
 ## PWA / MSW gate
 

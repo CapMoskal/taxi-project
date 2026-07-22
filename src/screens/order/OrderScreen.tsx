@@ -5,6 +5,8 @@ import type maplibregl from 'maplibre-gl'
 import { MapCanvas } from '@/shared/map/MapCanvas'
 import type { MapMarker } from '@/shared/map/MapCanvas'
 import { roadOrStraight, useGetRouteQuery } from '@/shared/map/routingApi'
+import { useMapCameraFollow } from '@/shared/map/useMapCameraFollow'
+import type { CameraPadding } from '@/shared/map/useMapCameraFollow'
 import { useOrderFlowSelector } from '@/features/order-flow/context'
 import { PickupResolver } from '@/features/order-flow/PickupResolver'
 import { DestinationSheet } from '@/features/order-flow/DestinationSheet'
@@ -17,14 +19,24 @@ import { useRideAutomation } from '@/features/order-flow/useRideAutomation'
 import { DEMO_PICKUP } from '@/features/order-flow/demoRoute'
 import { IdleOverlay } from './IdleOverlay'
 
+// Bottom-sheet phases (ClassPickerSheet/DriverSearchPanel) need bottom room;
+// DriverCard phases need top room instead — so the framed points don't hide
+// behind either overlay.
+const BOTTOM_SHEET_PADDING: CameraPadding = { top: 80, bottom: 260, left: 40, right: 40 }
+const DRIVER_CARD_PADDING: CameraPadding = { top: 160, bottom: 80, left: 40, right: 40 }
+
 function OrderScreen() {
   const mapRef = useRef<maplibregl.Map | null>(null)
   const snapshot = useOrderFlowSelector((state) => state)
-  const { position: driverPosition, routeBounds: driverRouteBounds } = useRideAutomation()
+  const { position: driverPosition } = useRideAutomation()
 
   const isIdlePhase = snapshot.matches('idle')
   const isPickupPhase = snapshot.matches('selectingPickup')
   const isDestinationPhase = snapshot.matches('selectingDestination')
+  const isBottomSheetOverview = snapshot.matches('selectingClass') || snapshot.matches('searchingDriver')
+  const isDriverCardOverview = snapshot.matches('driverAssigned') || snapshot.matches('arrived')
+  const isEnRoute = snapshot.matches('enRoute')
+  const isInRide = snapshot.matches('inRide')
 
   const markers: MapMarker[] = []
   // "You are here" (real GPS) — visible from idle onward, as soon as it resolves.
@@ -47,6 +59,26 @@ function OrderScreen() {
   const { data: routeData } = useGetRouteQuery(pickup && destination ? { from: pickup, to: destination } : skipToken)
   const routeLine = pickup && destination ? roadOrStraight(routeData, pickup, destination) : null
 
+  // Camera framing by phase: [taxi, next point] while driving, [A, B] while
+  // picking a class / waiting for the driver — no camera control elsewhere
+  // (selection/completion phases have their own jumpTo/sheets).
+  let cameraBounds: typeof routeLine = null
+  let cameraPadding: CameraPadding = BOTTOM_SHEET_PADDING
+  if (isEnRoute && driverPosition && pickup) {
+    cameraBounds = [driverPosition, pickup]
+    cameraPadding = DRIVER_CARD_PADDING
+  } else if (isInRide && driverPosition && destination) {
+    cameraBounds = [driverPosition, destination]
+    cameraPadding = DRIVER_CARD_PADDING
+  } else if (isDriverCardOverview && pickup && destination) {
+    cameraBounds = [pickup, destination]
+    cameraPadding = DRIVER_CARD_PADDING
+  } else if (isBottomSheetOverview && pickup && destination) {
+    cameraBounds = [pickup, destination]
+    cameraPadding = BOTTOM_SHEET_PADDING
+  }
+  useMapCameraFollow(mapRef, { bounds: cameraBounds, enabled: cameraBounds !== null, padding: cameraPadding })
+
   return (
     <div className="relative h-dvh w-full overflow-hidden">
       <MapCanvas
@@ -55,10 +87,13 @@ function OrderScreen() {
         zoom={14}
         markers={markers}
         routeLine={routeLine}
-        routeBounds={driverRouteBounds}
         showCenterPin={isDestinationPhase}
         onMapLoad={(map) => {
           mapRef.current = map
+          // Dev-only test hook — lets Playwright read the real camera state
+          // (getCenter/getZoom) instead of inferring it from marker screen
+          // positions, which are confounded by the taxi's own movement.
+          if (import.meta.env.DEV) (window as unknown as { __map?: maplibregl.Map }).__map = map
         }}
       />
 

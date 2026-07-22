@@ -11,7 +11,6 @@ const DRIVER_ASSIGNED_DELAY_MS = 2000
 
 export interface RideAutomation {
   position: GeoCoords | null
-  routeBounds: GeoCoords[] | null
 }
 
 export function useRideAutomation(): RideAutomation {
@@ -73,5 +72,5 @@ export function useRideAutomation(): RideAutomation {
     actorRef.send({ type: 'DRIVER_LOCATION_UPDATE', coords: position })
   }, [position, actorRef])
 
-  return { position, routeBounds: polyline.length >= 2 ? polyline : null }
+  return { position }
 }
