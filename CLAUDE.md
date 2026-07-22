@@ -45,7 +45,8 @@ npm run preview  # прод-сборка локально
   стыкуются RTK Query / XState / MSW / MapLibre.
 - `docs/decisions.md` — ADR-лог по фичам. Грабли скаффолда (Vite 8→6, shadcn
   alias-баг и т.п.) — в `docs/_archive/decisions-scaffold.md`.
-- `docs/roadmap.md` — фича-за-фичей план, меняется по ходу.
+- `docs/roadmap.md` — фича-за-фичей план, меняется по ходу. Подробности по
+  завершённым пунктам — `docs/_archive/roadmap-done.md`.
 - `.claude/rules/design-tokens.md` — «светлый минимализм», изумрудный
   `--primary` (зафиксировано), скругления/шрифт — дефолт preset shadcn/ui.
 - `.claude/rules/git-workflow.md` — ветки, коммиты.

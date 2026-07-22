@@ -114,16 +114,20 @@ completed (parallel: payment/rating) → done → (RESET) → idle`.
   пользователь двигает/зумит карту (`map.on('dragstart'|'zoomstart')`,
   гейт по `e.originalEvent` — отличает жест пользователя от программного
   `jumpTo`), возвращаясь в состояние **до** взаимодействия (не всегда в
-  `peek`) на `moveend`. Тап по адресу (недавнему или из поиска) — `jumpTo`
-  карты на точку (не `flyTo`, тот же mid-flight-хазард, см. ниже) и сворачивает
-  плашку в `peek`; подтверждение по-прежнему читает `map.getCenter()` —
-  логика не изменилась, только источник координат (drag карты **или**
-  выбор адреса, оба сходятся в один и тот же центр карты). Reverse-geocode
-  адреса центра карты на **user-initiated** `moveend` обновляет текст
-  инпута (гейт по `isInputFocusedRef` — не перетирает то, что пользователь
-  печатает). **Адреса не хранятся в XState-контексте** — только
-  `LatLng`; текстовые адреса (A и Б) — RTK Query кэш (`geocodingApi`),
-  читаются прямо в компоненте.
+  `peek`) на `moveend`. **`moveend`-обработчик без гейта на
+  `originalEvent`** (только проверка «плашка сейчас retreated») — как и в
+  `useMapCameraFollow`, MapLibre шлёт финальный `moveend` после
+  инерционного доторможения программно, без `originalEvent`; с гейтом
+  restore не срабатывал бы на быстром флик-драге, см. `decisions.md`. Тап
+  по адресу (недавнему или из поиска) — `jumpTo` карты на точку (не
+  `flyTo`, тот же mid-flight-хазард, см. ниже) и сворачивает плашку в
+  `peek`; подтверждение по-прежнему читает `map.getCenter()` — логика не
+  изменилась, только источник координат (drag карты **или** выбор адреса,
+  оба сходятся в один и тот же центр карты). Reverse-geocode адреса центра
+  карты на `moveend` обновляет текст инпута (гейт по `isInputFocusedRef` —
+  не перетирает то, что пользователь печатает). **Адреса не хранятся в
+  XState-контексте** — только `LatLng`; текстовые адреса (A и Б) — RTK
+  Query кэш (`geocodingApi`), читаются прямо в компоненте.
 - `DriverCard.tsx` — персистентная карточка (не bottom sheet, `absolute
   top-0`), показывается поверх карты, пока `context.driver !== null` и
   состояние — одно из `driverAssigned`/`enRoute`/`arrived`/`inRide`.
@@ -183,9 +187,10 @@ completed (parallel: payment/rating) → done → (RESET) → idle`.
    рисуется на карте: `markers` (массив `{id, position, color, variant}`,
    diff по id — user/pickup/destination/driver одновременно; `variant: 'dot'`
    — кастомный элемент `.location-dot` для «Вы здесь», иначе teardrop-pin),
-   `routeLine` (GeoJSON line-слой, сплошная тёмная линия), `routeBounds`
-   (камера через `fitBounds`), `showCenterPin` (CSS-оверлей для выбора
-   точки). Консьюмеры не трогают `maplibregl.Map`/`Marker` напрямую.
+   `routeLine` (GeoJSON line-слой, сплошная тёмная линия), `showCenterPin`
+   (CSS-оверлей для выбора точки). Камера в `MapCanvas` **не управляется**
+   — это отдельная ответственность, см. `useMapCameraFollow` ниже.
+   Консьюмеры не трогают `maplibregl.Map`/`Marker` напрямую.
    **Важно:** цвета маркеров (`var(--primary)` и т.п.) резолвятся браузером
    нативно (SVG `fill`), но MapLibre `paint`-свойства слоёв (WebGL) CSS
    custom properties и `oklch()` не понимают — для линий маршрута цвет
@@ -195,6 +200,18 @@ completed (parallel: payment/rating) → done → (RESET) → idle`.
    (`useAnimatedPosition` интерполирует по многоточечной полилинии). Обе
    ноги (подъезд водителя `enRoute` и поездка `inRide`) едут по дорогам.
    Fallback на прямую линию, если OSRM недоступен — `roadOrStraight()`.
+6. **`shared/map/useMapCameraFollow`** — камера, которая следит за поездкой
+   (вызывается из `OrderScreen`, не из `MapCanvas`). Throttled `fitBounds`
+   (~раз в секунду, не на каждый кадр) по кадру, который зависит от фазы:
+   такси + следующая точка в движении (`enRoute`: такси+A, `inRide`:
+   такси+Б — не всегда Б, см. `decisions.md`), [A, Б] на выборе класса и
+   ожидании водителя. Ручной drag/zoom/rotate пользователя (гейт на
+   `e.originalEvent`) приостанавливает слежение; автовозврат через 4с
+   бездействия (`moveend`, **без** гейта на `originalEvent` — инерция
+   MapLibre после драга шлёт финальный `moveend` программно, без
+   `originalEvent`, гейт бы просто не пустил автовозврат). Кнопки
+   «recenter» нет. `padding` разный по фазе — под нижний шит
+   (`selectingClass`/`searchingDriver`) или под `DriverCard` сверху.
 
 ## PWA / MSW gate
 

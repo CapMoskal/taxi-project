@@ -30,7 +30,6 @@ interface MapCanvasProps {
   styleUrl?: string
   markers?: MapMarker[]
   routeLine?: LatLng[] | null
-  routeBounds?: LatLng[] | null
   showCenterPin?: boolean
   onMapLoad?: (map: maplibregl.Map) => void
 }
@@ -82,7 +81,6 @@ function MapCanvas({
   styleUrl = MAPTILER_STYLE_URL,
   markers,
   routeLine,
-  routeBounds,
   showCenterPin,
   onMapLoad,
 }: MapCanvasProps) {
@@ -159,21 +157,6 @@ function MapCanvas({
     if (map.isStyleLoaded()) applyRouteLine()
     else map.once('load', applyRouteLine)
   }, [routeLine])
-
-  useEffect(() => {
-    const map = mapRef.current
-    if (!map || !routeBounds || routeBounds.length < 2) return
-
-    const lngs = routeBounds.map((point) => point.lng)
-    const lats = routeBounds.map((point) => point.lat)
-    map.fitBounds(
-      [
-        [Math.min(...lngs), Math.min(...lats)],
-        [Math.max(...lngs), Math.max(...lats)],
-      ],
-      { padding: 64, duration: 800 },
-    )
-  }, [routeBounds])
 
   return (
     <div className={cn('relative h-full w-full', className)} data-slot="map-canvas">
