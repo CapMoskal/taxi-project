@@ -29,7 +29,8 @@ src/
   `OrderScreen`), чтобы XState-актор жил над переключателем и не сбрасывался
   при уходе на профиль и обратно.
 - Экраны читают `useNavigation()` напрямую (профиль — back-кнопка + строка в
-  историю, `IdleOverlay` — аватар в профиль, история — back в профиль).
+  историю, `ProfileButton` (`screens/order/`) — аватар в профиль, история —
+  back в профиль).
   Фичи (`features/order-flow`) про навигацию не знают — это ответственность
   слоя экранов.
 - **Навигация плоская, без back-стека**: `screen` — одно значение, каждый
@@ -50,9 +51,11 @@ src/
 
 Ядро приложения, всё вокруг одной XState-машины (`machine.ts`,
 `orderFlowMachine`, v5 `setup().createMachine()`):
-`idle → selectingPickup → selectingDestination → selectingClass →
+`selectingPickup → selectingDestination → selectingClass →
 searchingDriver → driverAssigned → enRoute → arrived → inRide →
-completed (parallel: payment/rating) → done → (RESET) → idle`.
+completed (parallel: payment/rating) → done → (RESET) → selectingPickup`.
+**Нет состояния `idle`** — `selectingPickup` и есть первый экран, без
+стартового гейта (см. ниже и `decisions.md`).
 
 - `context.ts` — `createActorContext(orderFlowMachine)`, провайдер
   (`OrderFlowProvider`) заворачивает `OrderScreen`, не корень приложения.
@@ -61,25 +64,44 @@ completed (parallel: payment/rating) → done → (RESET) → idle`.
   `context.userLocation` — реальный GPS («Вы здесь»), отдельно от `pickup`
   (точка подачи A): пользователь может уточнить A drag'ом, «Я» остаётся на
   реальной позиции (модель Яндекса).
-- `selectingPickup` — реальная геолокация, полная модель Яндекса (без
-  ручного подтверждения): `PickupResolver` монтируется на **`idle` И
-  `selectingPickup`** (не только на последнем) — геолокация должна
-  запрашиваться сразу при входе в приложение, а не после «Начать заказ».
-  Через `shared/lib/useCurrentPosition` на сетлении шлёт
-  `SET_USER_LOCATION` + `SET_PICKUP` (реальные координаты или
-  `DEMO_PICKUP`-fallback при отказе/таймауте, оба события — top-level `on`
-  машины, доступны в любом состоянии) и `jumpTo` к точке (не `flyTo` —
-  кросс-страничная анимация дала бы чтение mid-flight-центра). Как только
-  `pickup` известен и машина в `selectingPickup` — тот же компонент сразу
-  шлёт `CONFIRM_PICKUP`, без кнопки/паузы; в типичном случае (геолокация
-  успела резолвиться ещё на `idle`) пользователь вообще не видит
-  `selectingPickup`. Drag-to-refine точки A этим шагом больше не
-  поддерживается — сознательный компромисс модели авто-подтверждения.
-  **Важно про повторный заказ:** монтирование по `idle || selectingPickup`
-  (а не постоянное на весь `OrderScreen`) — не косметика, а необходимость:
-  `useCurrentPosition` дергает геолокацию на mount, и если бы компонент не
-  размонтировался на время поездки, второй заказ подряд остался бы без
-  геопозиции (запрос не переспросился бы).
+- `selectingPickup` — **первый экран приложения** (нет стартового
+  «Начать заказ», полная модель Яндекса — референс-скрин от Eugene,
+  2026-07-23, см. `decisions.md`). Два компонента, оба монтируются только на
+  этой фазе (значимо для повторного заказа, см. ниже):
+  - **`PickupResolver.tsx`** — headless-сидер: через
+    `shared/lib/useCurrentPosition` на сетлении шлёт `SET_USER_LOCATION` +
+    `SET_PICKUP` (реальные координаты или `DEMO_PICKUP`-fallback при
+    отказе/таймауте, оба события — top-level `on` машины, доступны в любом
+    состоянии) и `jumpTo` к точке (не `flyTo` — mid-flight-хазард), гейтится
+    по `pickup === null` — ровно один раз на заказ. Никакого UI и
+    авто-`CONFIRM_PICKUP` не шлёт — переход теперь ручной.
+  - **`PickupSheet.tsx`** — реальный UI: центр-пин карты **и есть** точка A
+    (тот же паттерн, что `DestinationSheet` использует для Б) — драг карты
+    → `moveend` → `SET_PICKUP(map.getCenter())`, без гейта на
+    `originalEvent` (эта фаза не крутит камеру программно). Сверху пилюля
+    «Точка подачи · адрес» (`useReverseGeocodeQuery`, до резолва —
+    «Определяем местоположение…»); снизу компактный `BottomSheet` (без
+    свайпа, `max-h-[45vh]` + внутренний скролл списка — **важно**: без
+    капа список из 5 моковых недавних адресов растягивает шит выше
+    геометрического центра экрана и закрывает центр-пин, хотя
+    `map.getCenter()` продолжает репортить координату честно — баг найден
+    и пофикшен в этой же фиче, см. `decisions.md`) с плейсхолдером «Куда
+    едем?» (→ `CONFIRM_PICKUP`, задизейблен пока `pickup === null`) и
+    списком недавних адресов (`useGetRecentPlacesQuery` — тап: `jumpTo` на
+    адрес + `CONFIRM_PICKUP`, попадаем на `selectingDestination` с
+    центр-пином Б уже на этом адресе, не сразу в класс). **Важный
+    гард** (`isLeavingRef`): `jumpTo` при выборе недавнего адреса тоже
+    шлёт `moveend` — без гарда всё ещё смонтированный listener принял бы
+    его за «пользователь подвинул A» и переписал `pickup` координатами Б
+    (`pickup === destination` → OSRM возвращает вырожденный маршрут из 2
+    точек), см. `decisions.md`.
+  - **Повторный заказ**: монтирование обоих по `isPickupPhase` (а не
+    постоянное на весь `OrderScreen`) — не косметика: `useCurrentPosition`
+    дергает геолокацию на mount, и если бы `PickupResolver` не
+    размонтировался на время поездки, второй заказ подряд остался бы без
+    геопозиции (запрос не переспросился бы). `RESET`/`CANCEL_RIDE` теперь
+    ведут в `selectingPickup` (не `idle`, которого больше нет) —
+    `pickup: null` в свежем контексте снова запускает `PickupResolver`.
 - `demoRoute.ts` — `DEMO_PICKUP` (fallback для точки A, когда геолокация
   недоступна) + `getDriverStartPoint()` (смещение для этапа `enRoute`,
   относительно pickup, не абсолютная точка на карте).
@@ -91,22 +113,22 @@ completed (parallel: payment/rating) → done → (RESET) → idle`.
   (`onComplete` от `useAnimatedPosition`) → `DRIVER_ARRIVED`/`RIDE_COMPLETED`.
   `arrived → inRide` этим хуком не триггерится — это кнопка «Начать
   поездку» в `DriverCard`, осознанное действие пассажира, не таймер.
-- `PickupResolver.tsx` / `DestinationSheet.tsx` / `ClassPickerSheet.tsx` /
-  `DriverSearchPanel.tsx` — реальный UI для
-  `idle`+`selectingPickup`/`selectingDestination`/`selectingClass`/
+- `PickupResolver.tsx`+`PickupSheet.tsx` / `DestinationSheet.tsx` /
+  `ClassPickerSheet.tsx` / `DriverSearchPanel.tsx` — реальный UI для
+  `selectingPickup`/`selectingDestination`/`selectingClass`/
   `searchingDriver`. Метки по фазам (в `OrderScreen`): «Вы здесь» dot
-  (`context.userLocation`) виден уже на `idle`, как только геолокация
+  (`context.userLocation`) виден с первого экрана, как только геолокация
   резолвилась, и остаётся на `selectingPickup`/`selectingDestination`;
   метка A (чёрный pin) — с `selectingDestination` (на `selectingPickup`
-  центр-пин не показывается вообще — там нечего уточнять, подтверждение
-  автоматическое); Б — красный pin; водитель — изумруд. **Центр-пин
-  изумрудный** (`fill-primary`), а не чёрный — иначе камуфлировал бы
-  чёрную метку A (был реальный баг «A не видно»). `showCenterPin` включён
-  только на `selectingDestination` (центр-пин + drag карты остаются
-  механизмом выбора точки — `DestinationSheet` добавляет поиск/список
-  поверх, не заменяет). `ClassPickerSheet` шлёт `CONFIRM_CLASS` с `fare`
-  выбранного класса — цена фиксируется здесь, `context.fare` больше не
-  переписывается при `RIDE_COMPLETED`.
+  фиксированного A-пина ещё нет — сам центр-пин и есть кандидат A); Б —
+  красный pin; водитель — изумруд. **Центр-пин изумрудный**
+  (`fill-primary`), а не чёрный — иначе камуфлировал бы чёрную метку A (был
+  реальный баг «A не видно»). `showCenterPin` включён на
+  `selectingPickup`**и**`selectingDestination` (центр-пин + drag карты —
+  механизм выбора и A, и Б; `PickupSheet`/`DestinationSheet` добавляют
+  поиск/список поверх, не заменяют). `ClassPickerSheet` шлёт `CONFIRM_CLASS`
+  с `fare` выбранного класса — цена фиксируется здесь, `context.fare`
+  больше не переписывается при `RIDE_COMPLETED`.
 - **`DestinationSheet.tsx`** — свайпаемая плашка выбора точки Б (в стиле
   Яндекса): инпут адреса + список (недавние адреса или live-поиск), сама
   плашка тянется пальцем (Motion `drag="y"`, снап по velocity/позиции
@@ -155,10 +177,12 @@ completed (parallel: payment/rating) → done → (RESET) → idle`.
   после `SUBMIT_PAYMENT`/`SUBMIT_RATING`. `RideDoneCard.tsx` — bottom sheet
   на `done`, кнопка «Заказать снова» (`RESET`).
 
-Вход в поток (`idle`) — `screens/order/IdleOverlay.tsx` (аватар-кнопка в
-профиль + «Начать заказ» → `START_ORDER`), в слое экрана, а не фичи, т.к.
-композирует app-навигацию. **Debug-панель удалена** — весь флоу
-`idle → … → done` покрыт реальным UI, dev-only скаффолд больше не нужен.
+Вход в поток — `screens/order/ProfileButton.tsx` (аватар-кнопка в профиль,
+рендерится на `selectingPickup` рядом с `PickupSheet`), в слое экрана, а не
+фичи, т.к. композирует app-навигацию. Нет отдельного «стартового» экрана —
+`selectingPickup` и есть первый экран (см. выше). **Debug-панель удалена** —
+весь флоу `selectingPickup → … → done` покрыт реальным UI, dev-only
+скаффолд больше не нужен.
 
 ## Как стыкуются данные
 
@@ -245,7 +269,7 @@ completed (parallel: payment/rating) → done → (RESET) → idle`.
 инициализируется — бэкенд в проде отсутствует по определению проекта (см.
 CLAUDE.md). PWA-SW (generateSW) — наоборот, только прод; dev-режим плагина не
 включаем, так что MSW-SW и PWA-SW не пересекаются по средам. Весь флоу
-заказа `idle → … → done` + профиль + история покрыты реальным UI.
+заказа `selectingPickup → … → done` + профиль + история покрыты реальным UI.
 **Но:** сам API живёт только на MSW, а MSW гейтится на dev — значит голый
 `npm run build` даёт нерабочие запросы (профиль/классы/поиск/история
 падают). Реальный демо-показ Миши поэтому идёт через `npm run dev`/`preview`

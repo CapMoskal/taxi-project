@@ -4,7 +4,7 @@ import type maplibregl from 'maplibre-gl'
 import { animate, motion, useMotionValue } from 'motion/react'
 import type { PanInfo } from 'motion/react'
 import { skipToken } from '@reduxjs/toolkit/query/react'
-import { Clock, MapPin, Search } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useDebouncedValue } from '@/shared/lib/useDebouncedValue'
 import { useReverseGeocodeQuery, useSearchPlacesQuery } from '@/shared/map/geocodingApi'
@@ -14,6 +14,7 @@ import { useGetRecentPlacesQuery } from '@/entities/recent-place/api'
 import type { RecentPlace } from '@/entities/recent-place/types'
 import type { LatLng } from '@/shared/geo/types'
 import { useOrderFlowActorRef, useOrderFlowSelector } from './context'
+import { PlaceRow } from './PlaceRow'
 
 type SheetSnap = 'peek' | 'expanded' | 'retreated'
 
@@ -217,22 +218,13 @@ function DestinationSheet({ mapRef }: DestinationSheetProps) {
           )}
           <div className="flex flex-col">
             {rows.map((row) => (
-              <button
+              <PlaceRow
                 key={row.id}
-                type="button"
+                name={row.name}
+                subtitle={row.subtitle}
+                icon={row.icon}
                 onClick={() => handlePickRow(row)}
-                className="flex items-center gap-3 rounded-lg px-2 py-2.5 text-left hover:bg-muted"
-              >
-                {row.icon === 'recent' ? (
-                  <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />
-                ) : (
-                  <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
-                )}
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm text-foreground">{row.name}</span>
-                  <span className="block truncate text-xs text-muted-foreground">{row.subtitle}</span>
-                </span>
-              </button>
+              />
             ))}
           </div>
         </div>

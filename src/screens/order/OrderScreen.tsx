@@ -9,6 +9,7 @@ import { useMapCameraFollow } from '@/shared/map/useMapCameraFollow'
 import type { CameraPadding } from '@/shared/map/useMapCameraFollow'
 import { useOrderFlowSelector } from '@/features/order-flow/context'
 import { PickupResolver } from '@/features/order-flow/PickupResolver'
+import { PickupSheet } from '@/features/order-flow/PickupSheet'
 import { DestinationSheet } from '@/features/order-flow/DestinationSheet'
 import { ClassPickerSheet } from '@/features/order-flow/ClassPickerSheet'
 import { DriverSearchPanel } from '@/features/order-flow/DriverSearchPanel'
@@ -17,7 +18,7 @@ import { RideCompletionSheet } from '@/features/order-flow/RideCompletionSheet'
 import { RideDoneCard } from '@/features/order-flow/RideDoneCard'
 import { useRideAutomation } from '@/features/order-flow/useRideAutomation'
 import { DEMO_PICKUP } from '@/features/order-flow/demoRoute'
-import { IdleOverlay } from './IdleOverlay'
+import { ProfileButton } from './ProfileButton'
 
 // Bottom-sheet phases (ClassPickerSheet/DriverSearchPanel) need bottom room;
 // DriverCard phases need top room instead — so the framed points don't hide
@@ -30,7 +31,6 @@ function OrderScreen() {
   const snapshot = useOrderFlowSelector((state) => state)
   const { position: driverPosition } = useRideAutomation()
 
-  const isIdlePhase = snapshot.matches('idle')
   const isPickupPhase = snapshot.matches('selectingPickup')
   const isDestinationPhase = snapshot.matches('selectingDestination')
   const isBottomSheetOverview = snapshot.matches('selectingClass') || snapshot.matches('searchingDriver')
@@ -39,8 +39,8 @@ function OrderScreen() {
   const isInRide = snapshot.matches('inRide')
 
   const markers: MapMarker[] = []
-  // "You are here" (real GPS) — visible from idle onward, as soon as it resolves.
-  if ((isIdlePhase || isPickupPhase || isDestinationPhase) && snapshot.context.userLocation) {
+  // "You are here" (real GPS) — visible from the very first screen, as soon as it resolves.
+  if ((isPickupPhase || isDestinationPhase) && snapshot.context.userLocation) {
     markers.push({ id: 'user', position: snapshot.context.userLocation, variant: 'dot' })
   }
   // Pickup A pin — hidden during selectingPickup (the center pin is the A candidate there).
@@ -87,7 +87,7 @@ function OrderScreen() {
         zoom={14}
         markers={markers}
         routeLine={routeLine}
-        showCenterPin={isDestinationPhase}
+        showCenterPin={isPickupPhase || isDestinationPhase}
         onMapLoad={(map) => {
           mapRef.current = map
           // Dev-only test hook — lets Playwright read the real camera state
@@ -97,11 +97,16 @@ function OrderScreen() {
         }}
       />
 
-      {(isIdlePhase || isPickupPhase) && <PickupResolver mapRef={mapRef} />}
+      {isPickupPhase && (
+        <>
+          <PickupResolver mapRef={mapRef} />
+          <PickupSheet mapRef={mapRef} />
+          <ProfileButton />
+        </>
+      )}
       {isDestinationPhase && <DestinationSheet mapRef={mapRef} />}
 
       <AnimatePresence>
-        {snapshot.matches('idle') && <IdleOverlay key="idle-overlay" />}
         {snapshot.matches('selectingClass') && <ClassPickerSheet key="class-picker" />}
         {snapshot.matches('searchingDriver') && <DriverSearchPanel key="driver-search" />}
         {snapshot.matches('completed') && <RideCompletionSheet key="ride-completion" />}

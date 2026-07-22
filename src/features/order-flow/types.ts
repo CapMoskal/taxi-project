@@ -37,7 +37,6 @@ export interface OrderFlowContext {
 }
 
 export type OrderFlowEvent =
-  | { type: 'START_ORDER' }
   | { type: 'SET_USER_LOCATION'; coords: GeoCoords }
   | { type: 'SET_PICKUP'; coords: GeoCoords }
   | { type: 'CONFIRM_PICKUP' }
