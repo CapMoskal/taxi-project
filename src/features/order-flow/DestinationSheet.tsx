@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { useDebouncedValue } from '@/shared/lib/useDebouncedValue'
 import { useReverseGeocodeQuery, useSearchPlacesQuery } from '@/shared/map/geocodingApi'
 import type { Place } from '@/shared/map/geocodingApi'
+import { useGetRouteQuery } from '@/shared/map/routingApi'
 import { useGetRecentPlacesQuery } from '@/entities/recent-place/api'
 import type { RecentPlace } from '@/entities/recent-place/types'
 import type { LatLng } from '@/shared/geo/types'
@@ -34,6 +35,12 @@ function DestinationSheet({ mapRef }: DestinationSheetProps) {
   const isInputFocusedRef = useRef(false)
   const debouncedQuery = useDebouncedValue(query, 300)
   const [draggedCenter, setDraggedCenter] = useState<LatLng | null>(null)
+  // Whatever `handleConfirm` would read right now (map.getCenter()) — kept in
+  // sync on every settle, not just drag-retreat cycles, so the road route to
+  // it can be prefetched below and be warm in cache by the time the user
+  // actually taps confirm (OrderScreen's own useGetRouteQuery re-subscribes
+  // to the same {from,to} args and hits the cache instead of refetching).
+  const [candidateDestination, setCandidateDestination] = useState<LatLng | null>(null)
 
   const [snap, setSnap] = useState<SheetSnap>('peek')
   const snapRef = useRef<SheetSnap>('peek')
@@ -85,11 +92,21 @@ function DestinationSheet({ mapRef }: DestinationSheetProps) {
     // moveend from our own programmatic jumpTo (snap never became 'retreated'
     // for those).
     const onMoveEnd = () => {
+      // Unconditional: this is whatever handleConfirm would read right now
+      // (map.getCenter()), kept fresh on every settle — including
+      // programmatic jumpTo from picking a search result — so the route
+      // prefetch below stays warm regardless of how the user got here.
+      const center = map.getCenter()
+      setCandidateDestination({ lat: center.lat, lng: center.lng })
       if (snapRef.current !== 'retreated') return
       setSnap(prevSnapRef.current)
-      const center = map.getCenter()
       setDraggedCenter({ lat: center.lat, lng: center.lng })
     }
+    // Seed the initial candidate immediately — the map may already be sitting
+    // on a valid destination (wherever selectingPickup left it) before any
+    // drag/jumpTo ever fires a moveend.
+    const initialCenter = map.getCenter()
+    setCandidateDestination({ lat: initialCenter.lat, lng: initialCenter.lng })
     map.on('dragstart', onUserMoveStart)
     map.on('zoomstart', onUserMoveStart)
     map.on('moveend', onMoveEnd)
@@ -99,6 +116,13 @@ function DestinationSheet({ mapRef }: DestinationSheetProps) {
       map.off('moveend', onMoveEnd)
     }
   }, [mapRef])
+
+  // Warm the OSRM cache for the road route to whatever's currently centered
+  // — OrderScreen's own useGetRouteQuery re-subscribes to the same {from,to}
+  // args right after CONFIRM_DESTINATION and hits this cache entry instead
+  // of starting the fetch from scratch, so selectingClass doesn't flash a
+  // straight-line fallback while a fresh OSRM request is in flight.
+  useGetRouteQuery(pickup && candidateDestination ? { from: pickup, to: candidateDestination } : skipToken)
 
   const { data: pickupAddress } = useReverseGeocodeQuery(pickup ?? skipToken)
 
@@ -146,78 +170,86 @@ function DestinationSheet({ mapRef }: DestinationSheetProps) {
   }
 
   return (
-    <motion.div
-      ref={containerRef}
-      style={{ y }}
-      drag="y"
-      dragConstraints={{ top: 0, bottom: retreatedY }}
-      dragElastic={0.15}
-      dragMomentum={false}
-      onDragEnd={handleDragEnd}
-      className="absolute inset-x-0 bottom-0 z-20 flex h-[70vh] flex-col rounded-t-2xl border-t border-border bg-background shadow-lg"
-      data-slot="destination-sheet"
-    >
-      <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-muted" />
+    <>
+      <motion.div
+        ref={containerRef}
+        style={{ y }}
+        drag="y"
+        dragConstraints={{ top: 0, bottom: retreatedY }}
+        dragElastic={0.15}
+        dragMomentum={false}
+        onDragEnd={handleDragEnd}
+        className="absolute inset-x-0 bottom-0 z-20 flex h-[70vh] flex-col rounded-t-2xl border-t border-border bg-background shadow-lg"
+        data-slot="destination-sheet"
+      >
+        <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-muted" />
 
-      <div className="shrink-0 px-4 pt-3">
-        <p className="mb-2 text-xs text-muted-foreground">
-          Точка подачи · {pickupAddress || '…'}
-        </p>
-        <div className="flex items-center gap-2 rounded-lg border border-border px-3 py-2">
-          <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onFocus={() => {
-              isInputFocusedRef.current = true
-              setSnap('expanded')
-            }}
-            onBlur={() => {
-              isInputFocusedRef.current = false
-            }}
-            placeholder="Куда едем?"
-            className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
-            data-slot="destination-input"
-          />
+        <div className="shrink-0 px-4 pt-3">
+          <p className="mb-2 text-xs text-muted-foreground">
+            Точка подачи · {pickupAddress || '…'}
+          </p>
+          <div className="flex items-center gap-2 rounded-lg border border-border px-3 py-2">
+            <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onFocus={() => {
+                isInputFocusedRef.current = true
+                setSnap('expanded')
+              }}
+              onBlur={() => {
+                isInputFocusedRef.current = false
+              }}
+              placeholder="Куда едем?"
+              className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+              data-slot="destination-input"
+            />
+          </div>
+          {isSearching && showSearch && <p className="mt-2 text-xs text-muted-foreground">Ищем…</p>}
+          {showSearch && !isSearching && rows.length === 0 && (
+            <p className="mt-2 text-xs text-muted-foreground">Ничего не найдено</p>
+          )}
         </div>
-        {isSearching && showSearch && <p className="mt-2 text-xs text-muted-foreground">Ищем…</p>}
-        {showSearch && !isSearching && rows.length === 0 && (
-          <p className="mt-2 text-xs text-muted-foreground">Ничего не найдено</p>
-        )}
-      </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-2">
-        {!showSearch && rows.length > 0 && (
-          <p className="mb-1 px-1 text-xs text-muted-foreground">Недавние адреса</p>
-        )}
-        <div className="flex flex-col">
-          {rows.map((row) => (
-            <button
-              key={row.id}
-              type="button"
-              onClick={() => handlePickRow(row)}
-              className="flex items-center gap-3 rounded-lg px-2 py-2.5 text-left hover:bg-muted"
-            >
-              {row.icon === 'recent' ? (
-                <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />
-              ) : (
-                <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
-              )}
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm text-foreground">{row.name}</span>
-                <span className="block truncate text-xs text-muted-foreground">{row.subtitle}</span>
-              </span>
-            </button>
-          ))}
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-2 pb-20">
+          {!showSearch && rows.length > 0 && (
+            <p className="mb-1 px-1 text-xs text-muted-foreground">Недавние адреса</p>
+          )}
+          <div className="flex flex-col">
+            {rows.map((row) => (
+              <button
+                key={row.id}
+                type="button"
+                onClick={() => handlePickRow(row)}
+                className="flex items-center gap-3 rounded-lg px-2 py-2.5 text-left hover:bg-muted"
+              >
+                {row.icon === 'recent' ? (
+                  <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />
+                ) : (
+                  <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
+                )}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm text-foreground">{row.name}</span>
+                  <span className="block truncate text-xs text-muted-foreground">{row.subtitle}</span>
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      </motion.div>
 
-      <div className="shrink-0 border-t border-border p-4">
+      {/* Own layer, independent of the sheet's peek/expanded/retreated translateY —
+          `peek` only reveals the sheet's top ~38%, which would otherwise carry the
+          confirm button (the sheet's last child) off-screen below the fold. */}
+      <div
+        className="absolute inset-x-0 bottom-0 z-30 border-t border-border bg-background p-4"
+        data-slot="destination-confirm-footer"
+      >
         <Button className="w-full" onClick={handleConfirm}>
           Подтвердить точку назначения
         </Button>
       </div>
-    </motion.div>
+    </>
   )
 }
 

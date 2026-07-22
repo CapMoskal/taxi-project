@@ -128,6 +128,19 @@ completed (parallel: payment/rating) → done → (RESET) → idle`.
   не перетирает то, что пользователь печатает). **Адреса не хранятся в
   XState-контексте** — только `LatLng`; текстовые адреса (A и Б) — RTK
   Query кэш (`geocodingApi`), читаются прямо в компоненте.
+  **Кнопка «Подтвердить точку назначения» — отдельный слой** (`z-30`,
+  `data-slot="destination-confirm-footer"`), не внутри свайпаемого
+  `motion.div` (`z-20`): в `peek` плашка видна только на ~38% (translateY
+  вниз на `peekY`), а кнопка была последним ребёнком — уезжала за нижний
+  край экрана вместе с остальным контентом, реально видна была только в
+  `expanded`. Вынесена наружу — видна всегда независимо от снапа, см.
+  `decisions.md`. **Прогрев маршрута**: пока плашка открыта,
+  `useGetRouteQuery({from: pickup, to: candidateDestination})` подписан на
+  ту же пару координат, что подтвердит `handleConfirm` (`candidateDestination`
+  обновляется на каждый `moveend`, без гейта на retreated — в отличие от
+  `draggedCenter`/восстановления снапа) — к моменту тапа «Подтвердить» OSRM
+  уже отдал road-геометрию, `OrderScreen`/`useRideAutomation` переиспользуют
+  тот же закэшированный запрос вместо прямой линии, см. `decisions.md`.
 - `DriverCard.tsx` — персистентная карточка (не bottom sheet, `absolute
   top-0`), показывается поверх карты, пока `context.driver !== null` и
   состояние — одно из `driverAssigned`/`enRoute`/`arrived`/`inRide`.
