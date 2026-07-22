@@ -28,23 +28,18 @@ export const orderFlowMachine = setup({
   },
 }).createMachine({
   id: 'orderFlow',
-  initial: 'idle',
+  initial: 'selectingPickup',
   context: initialContext,
   // Available in every state so PickupResolver can seed userLocation/pickup
-  // as soon as geolocation settles, whether that happens on `idle` or
-  // `selectingPickup` — see docs/decisions.md.
+  // as soon as geolocation settles — see docs/decisions.md.
   on: {
     SET_USER_LOCATION: { actions: assign({ userLocation: ({ event }) => event.coords }) },
     SET_PICKUP: { actions: assign({ pickup: ({ event }) => event.coords }) },
   },
   states: {
-    idle: {
-      on: { START_ORDER: 'selectingPickup' },
-    },
     selectingPickup: {
       on: {
         CONFIRM_PICKUP: { target: 'selectingDestination', guard: 'hasPickup' },
-        CANCEL_RIDE: { target: 'idle', actions: 'resetOrder' },
       },
     },
     selectingDestination: {
@@ -68,20 +63,20 @@ export const orderFlowMachine = setup({
       on: {
         DRIVER_FOUND: { target: 'driverAssigned', actions: assign({ driver: ({ event }) => event.driver }) },
         SEARCH_FAILED: 'selectingClass',
-        CANCEL_RIDE: { target: 'idle', actions: 'resetOrder' },
+        CANCEL_RIDE: { target: 'selectingPickup', actions: 'resetOrder' },
       },
     },
     driverAssigned: {
       on: {
         DRIVER_EN_ROUTE: 'enRoute',
-        CANCEL_RIDE: { target: 'idle', actions: 'resetOrder' },
+        CANCEL_RIDE: { target: 'selectingPickup', actions: 'resetOrder' },
       },
     },
     enRoute: {
       on: {
         DRIVER_LOCATION_UPDATE: { actions: assign({ driverLocation: ({ event }) => event.coords }) },
         DRIVER_ARRIVED: 'arrived',
-        CANCEL_RIDE: { target: 'idle', actions: 'resetOrder' },
+        CANCEL_RIDE: { target: 'selectingPickup', actions: 'resetOrder' },
       },
     },
     arrived: {
@@ -122,7 +117,7 @@ export const orderFlowMachine = setup({
       onDone: 'done',
     },
     done: {
-      on: { RESET: { target: 'idle', actions: 'resetOrder' } },
+      on: { RESET: { target: 'selectingPickup', actions: 'resetOrder' } },
     },
   },
 })
