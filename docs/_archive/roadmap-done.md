@@ -155,3 +155,18 @@
       работают, сквозной smoke до `selectingClass` с road-геометрией,
       `CANCEL_RIDE` возвращает на рабочий экран A, аватар → профиль, ноль
       ошибок.
+- [x] Демо задеплоено на Vercel: **https://taxi-project-tau.vercel.app**
+      (публичный постоянный адрес, автодеплой на каждый пуш в `main`;
+      внутренние URL-ы деплойментов `taxi-project-xxx-capmoskals-...` —
+      под Vercel-логином, наружу не давать). MSW включён во всех средах
+      (гейт снят), Workbox-SW не регистрируется (`injectRegister: false`,
+      scope-конфликт — MSW важнее), `vercel.json` с SPA-rewrite и
+      `installCommand: npm install --force` (обход `EBADPLATFORM` от
+      macOS-биндинга oxlint — грабля первого деплоя). Env
+      `VITE_MAPTILER_KEY` — в настройках Vercel-проекта. Все решения и
+      расследование — `decisions.md` (2026-07-23). Проверено Playwright'ом
+      по живому URL (MapTiler 200, MSW 200 OK на всех эндпоинтах,
+      единственный SW — MSW, манифест на месте, сквозной флоу с
+      road-маршрутом, ноль ошибок) + Eugene с реального телефона
+      (нашёл пару багов по UI/поведению — список придёт, это уже правки
+      приложения, не деплоя).
