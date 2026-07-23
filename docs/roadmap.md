@@ -39,15 +39,20 @@
          (`vite.config.ts`), `vercel.json`; проверено Playwright'ом на
          прод-сборке (`npm run preview`) — MSW жив, единственный SW —
          `mockServiceWorker.js`, ноль ошибок. Доки/правила обновлены.
-   - [ ] **Eugene, руками:** импортировать `CapMoskal/taxi-project` в
-         Vercel (Vite определится сам: build `npm run build`, output
-         `dist`) и в Project Settings → Environment Variables добавить
-         `VITE_MAPTILER_KEY` (значение из локального `.env`) для
-         Production и Preview — **без него карта не загрузится**.
-         Автодеплой из `main` Vercel включает сам при импорте.
-   - [ ] Проверка живого линка с реального телефона: геолокация (https
-         есть из коробки), PWA-установка «на экран Домой», полный флоу.
-         После этого пункт закрывается в `_archive/roadmap-done.md`.
+   - [x] **Задеплоено: https://taxi-project-tau.vercel.app** (публичный
+         постоянный адрес — им и делиться; URL-ы вида
+         `taxi-project-xxx-capmoskals-projects.vercel.app` — внутренние,
+         под Vercel-логином, Мише не давать). Env `VITE_MAPTILER_KEY`
+         заведён; первый деплой падал с `EBADPLATFORM` (macOS-биндинг
+         oxlint), починено `installCommand: npm install --force` в
+         `vercel.json` — см. `decisions.md`. Проверено Playwright'ом по
+         живому URL: MapTiler 200 (ключ работает), MSW жив (профиль/
+         классы/недавние — 200 OK), единственный SW —
+         `mockServiceWorker.js`, манифест «Такси»/standalone/3 иконки,
+         сквозной флоу А→Б→классы с road-маршрутом, ноль ошибок.
+   - [ ] Проверка с реального телефона (Eugene): геолокация, PWA-установка
+         «на экран Домой», полный флоу. После этого пункт закрывается в
+         `_archive/roadmap-done.md`.
 
 ## Открытое
 
