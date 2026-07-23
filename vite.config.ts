@@ -10,6 +10,12 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
+      // Workbox SW is built but NOT registered: scope `/` can only be held by
+      // one service worker, and on the deployed demo it belongs to MSW (the
+      // app's entire backend). Manifest + icons still get injected, so
+      // install-to-home-screen keeps working; we only lose offline tile
+      // caching. See docs/decisions.md (2026-07-23).
+      injectRegister: false,
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
