@@ -250,31 +250,33 @@ completed (parallel: payment/rating) → done → (RESET) → selectingPickup`.
    «recenter» нет. `padding` разный по фазе — под нижний шит
    (`selectingClass`/`searchingDriver`) или под `DriverCard` сверху.
 
-## PWA / MSW gate
+## PWA / MSW / деплой
 
-`vite-plugin-pwa` собирает манифест и service worker для прод-сборки.
-Манифест (`vite.config.ts`): «Такси», `theme_color: #059669` (изумруд,
-бренд), `background_color: #fff`, `standalone`, `portrait`, иконки
-192/512/512-maskable из `public/` (изумрудный фон + белый глиф машины,
-сгенерированы одноразовым скриптом; фиолетовый favicon от скаффолда заменён
-на изумрудный). apple-touch-icon и apple-теги — в `index.html` (плагин их не
-инжектит). Offline трёхуровневый: precache оболочки
-(`workbox.navigateFallback` + `globPatterns`), runtime-кэш тайлов MapTiler
-(`runtimeCaching`, StaleWhileRevalidate — уже виденные участки карты
-доступны офлайн), и индикатор `shared/ui/OfflineBanner` (по
-`shared/lib/useOnlineStatus`, `navigator.onLine`) поверх любого экрана.
+**MSW работает во всех средах, прод включая** (`enableMocking()` в
+`main.tsx`, без гейта — снят 2026-07-23, см. `decisions.md`): задеплоенное
+демо и есть продукт, MSW — его единственный бэкенд. `npm run build` даёт
+полностью рабочую сборку (профиль/классы/поиск/история — всё живое),
+`npm run preview` — локальный смоук той же сборки.
 
-`mockServiceWorker.js` (MSW) — отдельный SW, работает только в dev через
-`enableMocking()` в `main.tsx`. В проде (`import.meta.env.PROD`) MSW не
-инициализируется — бэкенд в проде отсутствует по определению проекта (см.
-CLAUDE.md). PWA-SW (generateSW) — наоборот, только прод; dev-режим плагина не
-включаем, так что MSW-SW и PWA-SW не пересекаются по средам. Весь флоу
-заказа `selectingPickup → … → done` + профиль + история покрыты реальным UI.
-**Но:** сам API живёт только на MSW, а MSW гейтится на dev — значит голый
-`npm run build` даёт нерабочие запросы (профиль/классы/поиск/история
-падают). Реальный демо-показ Миши поэтому идёт через `npm run dev`/`preview`
-(где MSW жив) — либо на финальном пункте роадмапа снимем dev-гейт с MSW
-специально для демо-сборки. Это предмет последнего пункта `roadmap.md`.
+**Хостинг — Vercel**, автодеплой на каждый пуш в `main` (Миша видит правки
+без ручных действий). `vercel.json` — SPA-rewrite всех путей без файла на
+`/index.html`. **Обязательная env-переменная в Vercel:**
+`VITE_MAPTILER_KEY` (ключ клиентский, уходит в бандл — для демо ок); без
+неё стиль карты уйдёт с `key=undefined` и карта не загрузится. Https у
+Vercel из коробки — secure context для геолокации есть.
+
+**PWA:** `vite-plugin-pwa` инжектит манифест («Такси», `theme_color:
+#059669` изумруд, `standalone`, `portrait`, иконки 192/512/512-maskable из
+`public/`; apple-теги — в `index.html` руками, плагин их не инжектит) —
+установка «на экран Домой» работает. **Workbox-SW собирается, но НЕ
+регистрируется** (`injectRegister: false` в `vite.config.ts`): scope `/`
+может держать только один service worker, и он отдан MSW
+(`mockServiceWorker.js`) — это весь бэкенд приложения, офлайн-кэш тайлов
+без него бессмысленен. Сознательный размен: потеряли precache оболочки и
+runtime-кэш тайлов MapTiler, оставили установку и брендированную оболочку.
+Индикатор офлайна (`shared/ui/OfflineBanner` по `navigator.onLine`) жив —
+он от SW не зависит. Если когда-нибудь появится реальный бэкенд — вернуть
+`injectRegister` и Workbox-SW обратно.
 
 ## Алиас
 
