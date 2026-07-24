@@ -12,7 +12,15 @@ import { test, expect } from '@playwright/test'
 test('full ride: pickup through payment/rating and back to a fresh pickup screen', async ({ page }) => {
   const errors: string[] = []
   page.on('console', (msg) => {
-    if (msg.type() === 'error') errors.push(msg.text())
+    if (msg.type() !== 'error') return
+    // entities/driver/mocks.ts has a deliberate 20% failure rate on
+    // /api/driver-search (to exercise the retry UI below) — Chrome logs any
+    // non-2xx response as a console error automatically ("Failed to load
+    // resource: ..."), even though the app handles it gracefully. The URL
+    // isn't in msg.text() (just the generic string) — it's in msg.location().
+    // Expected noise, not a real regression signal.
+    if (msg.location().url.includes('/api/driver-search')) return
+    errors.push(msg.text())
   })
   page.on('pageerror', (err) => errors.push(`PAGE ERROR: ${err.message}`))
 

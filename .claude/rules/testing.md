@@ -46,6 +46,27 @@ npm run test:e2e  # @playwright/test — регресс-сеть, ~10с
   Worker) фейком не затрагиваются — остаются короткими честными ждать.
 - Запуск: `npm run test:e2e` (headless), `npm run test:e2e:ui` (Playwright
   UI-режим для отладки), `npm run test:e2e:headed` (видимый браузер).
+- **Console-ошибки от честно смокированных отказов — не баг, фильтровать
+  по URL, не по тексту.** `driver-search` через `SEARCH_FAILURE_RATE=0.2`
+  иногда честно отвечает 404 (см. выше) — Chrome логирует ЛЮБОЙ non-2xx
+  ответ в консоль как «Failed to load resource» автоматически, даже когда
+  приложение обработало это штатно (ретрай). Грабля: у такого
+  console-сообщения `msg.text()` — просто общая строка без URL, сам URL —
+  только в `msg.location().url`; фильтрация по `.text()` не сработает.
+  `full-ride.spec.ts` фильтрует `msg.location().url.includes('/api/driver-search')`
+  перед тем как считать ошибку реальной. Полсотни прогонов на этом ловились
+  ложные срабатывания, пока не нашли точную причину — см. `decisions.md`.
+
+## CI-бэкстоп (`.github/workflows/ci.yml`)
+
+Автоматический backstop «на всякий случай» (решение Eugene, 2026-07-25) —
+не PR-гейт (в проекте нет GitHub PR, фича-ветки живут только локально), а
+защита самого `main`: гоняется на каждый пуш в `main` (`build` → `lint` →
+`test:e2e`), на случай если кто-то закоммитит без локального прогона. Node
+22, `npm install --force` (тот же обход `EBADPLATFORM` от
+`@oxlint/binding-darwin-arm64`, что и в `vercel.json` — см. `decisions.md`
+2026-07-23), `playwright install --with-deps chromium`. При падении —
+`playwright-report` уходит в артефакт GitHub Actions.
 
 ## Ad-hoc глубокая проверка (одноразовые скрипты)
 
