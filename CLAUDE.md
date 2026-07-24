@@ -12,10 +12,11 @@ v4 + shadcn/ui + Motion (ex-Framer Motion) + MapLibre GL + vite-plugin-pwa.
 ## Команды
 
 ```
-npm run dev      # dev-сервер
-npm run build    # tsc -b && vite build
-npm run lint     # oxlint
-npm run preview  # прод-сборка локально
+npm run dev       # dev-сервер
+npm run build     # tsc -b && vite build
+npm run lint      # oxlint
+npm run preview   # прод-сборка локально
+npm run test:e2e  # @playwright/test — регресс-сеть (обязательна перед коммитом)
 ```
 
 ## Жёсткие правила
@@ -38,8 +39,8 @@ npm run preview  # прод-сборка локально
    хардкодить цвета/радиусы в компонентах (см. `.claude/rules/design-tokens.md`).
 6. **Архитектурные решения — в `docs/decisions.md`**, не устно и не только в
    коммите.
-7. Перед коммитом — `npm run build` и `npm run lint` зелёные
-   (`.claude/rules/testing.md`).
+7. Перед коммитом — `npm run build`, `npm run lint` и `npm run test:e2e`
+   зелёные (`.claude/rules/testing.md`).
 
 ## Глубокие доки
 
