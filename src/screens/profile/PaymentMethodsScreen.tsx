@@ -16,7 +16,7 @@ const BRAND_LABEL: Record<PaymentMethodBrand, string> = {
 function paymentMethodLabel(method: PaymentMethod): string {
   if (method.type === 'cash') return 'Наличные'
   const brand = method.brand ? BRAND_LABEL[method.brand] : 'Карта'
-  return `${brand} •• ${method.last4 ?? ''}`.trim()
+  return `${brand} •••• ${method.last4 ?? ''}`.trim()
 }
 
 function AddCardSheet({ onClose }: { onClose: () => void }) {
