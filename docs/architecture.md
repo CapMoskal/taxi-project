@@ -206,11 +206,14 @@ completed (parallel: payment/rating) → done → (RESET) → selectingPickup`.
 2. **MSW** перехватывает запросы RTK Query к `/api/*` на уровне Service
    Worker (`src/shared/mocks/browser.ts`, хендлеры собираются в
    `src/shared/mocks/handlers.ts` ре-экспортом из `entities/*/mocks.ts` —
-   конвенция из `.claude/rules/msw-mocking.md`). Включается только в dev
-   (`import.meta.env.PROD` гейт в `main.tsx`), настроен
-   `onUnhandledRequest: 'bypass'` — реальные внешние вызовы (OSRM, тайлы)
-   проходят насквозь, не мокаются. Фронт не знает, что бэкенда нет —
-   честные loading/error state (см. `ClassPickerSheet.tsx`).
+   конвенция из `.claude/rules/msw-mocking.md`). Включается во всех средах,
+   прод включая (гейт на `import.meta.env.PROD` снят 2026-07-23 — см. «PWA
+   / MSW / деплой» ниже), настроен `onUnhandledRequest: 'bypass'` —
+   реальные внешние вызовы (OSRM, тайлы) проходят насквозь, не мокаются.
+   Фронт не знает, что бэкенда нет — честные loading/error state (см.
+   `ClassPickerSheet.tsx`). В e2e-тестах (`playwright.config.ts`) к
+   `handlers.ts` дополнительно подмешиваются `e2e-handlers.ts` (OSRM/
+   MapTiler тоже через MSW) — гейт `VITE_E2E`, см. `.claude/rules/testing.md`.
 3. **`app/store.ts`** регистрирует reducer+middleware каждого RTK Query
    api-slice (`[api.reducerPath]: api.reducer`,
    `getDefaultMiddleware().concat(api.middleware)`) — при добавлении нового
