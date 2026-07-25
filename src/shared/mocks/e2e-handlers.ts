@@ -42,6 +42,7 @@ export const e2eHandlers: HttpHandler[] = [
     HttpResponse.json({ code: 'Ok', routes: [{ geometry: { coordinates: MOCK_ROUTE_COORDS } }] }),
   ),
   http.get('https://api.maptiler.com/maps/basic-v2/style.json', () => HttpResponse.json(EMPTY_STYLE)),
+  http.get('https://api.maptiler.com/maps/basic-v2-dark/style.json', () => HttpResponse.json(EMPTY_STYLE)),
   http.get('https://api.maptiler.com/geocoding/:query.json', ({ params }) => {
     const query = String(params.query)
     // Reverse geocode requests look like "{lng},{lat}" — forward search is

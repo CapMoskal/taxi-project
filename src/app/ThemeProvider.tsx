@@ -10,22 +10,30 @@ function readStoredMode(): ThemeMode {
   return 'system'
 }
 
-function applyMode(mode: ThemeMode) {
-  const isDark = mode === 'dark' || (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
-  document.documentElement.classList.toggle('dark', isDark)
+function computeIsDark(mode: ThemeMode): boolean {
+  return mode === 'dark' || (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
 }
 
 function ThemeProvider({ children }: { children: ReactNode }) {
   const [mode, setModeState] = useState<ThemeMode>(readStoredMode)
+  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>(() =>
+    computeIsDark(mode) ? 'dark' : 'light',
+  )
 
   useEffect(() => {
-    applyMode(mode)
+    const isDark = computeIsDark(mode)
+    document.documentElement.classList.toggle('dark', isDark)
+    setResolvedTheme(isDark ? 'dark' : 'light')
     if (mode !== 'system') return
 
     // Re-apply if the OS theme flips while we're in "system" mode — the
-    // class needs updating even though `mode` itself hasn't changed.
+    // class (and resolvedTheme, which the map reads) needs updating even
+    // though `mode` itself hasn't changed.
     const media = window.matchMedia('(prefers-color-scheme: dark)')
-    const handleChange = () => applyMode('system')
+    const handleChange = () => {
+      document.documentElement.classList.toggle('dark', media.matches)
+      setResolvedTheme(media.matches ? 'dark' : 'light')
+    }
     media.addEventListener('change', handleChange)
     return () => media.removeEventListener('change', handleChange)
   }, [mode])
@@ -35,7 +43,7 @@ function ThemeProvider({ children }: { children: ReactNode }) {
     setModeState(next)
   }
 
-  return <ThemeContext.Provider value={{ mode, setMode }}>{children}</ThemeContext.Provider>
+  return <ThemeContext.Provider value={{ mode, resolvedTheme, setMode }}>{children}</ThemeContext.Provider>
 }
 
 export { ThemeProvider }

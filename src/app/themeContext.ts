@@ -4,6 +4,7 @@ export type ThemeMode = 'light' | 'dark' | 'system'
 
 export interface ThemeContextValue {
   mode: ThemeMode
+  resolvedTheme: 'light' | 'dark'
   setMode: (mode: ThemeMode) => void
 }
 

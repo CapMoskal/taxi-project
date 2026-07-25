@@ -4,9 +4,11 @@ import { AnimatePresence } from 'motion/react'
 import type maplibregl from 'maplibre-gl'
 import { MapCanvas } from '@/shared/map/MapCanvas'
 import type { MapMarker } from '@/shared/map/MapCanvas'
+import { MAPTILER_STYLE_URL, MAPTILER_STYLE_URL_DARK } from '@/shared/map/config'
 import { roadOrStraight, useGetRouteQuery } from '@/shared/map/routingApi'
 import { useMapCameraFollow } from '@/shared/map/useMapCameraFollow'
 import type { CameraPadding } from '@/shared/map/useMapCameraFollow'
+import { useTheme } from '@/app/themeContext'
 import { useOrderFlowSelector } from '@/features/order-flow/context'
 import { PickupResolver } from '@/features/order-flow/PickupResolver'
 import { PickupSheet } from '@/features/order-flow/PickupSheet'
@@ -30,6 +32,8 @@ function OrderScreen() {
   const mapRef = useRef<maplibregl.Map | null>(null)
   const snapshot = useOrderFlowSelector((state) => state)
   const { position: driverPosition } = useRideAutomation()
+  const { resolvedTheme } = useTheme()
+  const mapStyleUrl = resolvedTheme === 'dark' ? MAPTILER_STYLE_URL_DARK : MAPTILER_STYLE_URL
 
   const isPickupPhase = snapshot.matches('selectingPickup')
   const isDestinationPhase = snapshot.matches('selectingDestination')
@@ -85,6 +89,7 @@ function OrderScreen() {
         className="absolute inset-0"
         center={[DEMO_PICKUP.lng, DEMO_PICKUP.lat]}
         zoom={14}
+        styleUrl={mapStyleUrl}
         markers={markers}
         routeLine={routeLine}
         showCenterPin={isPickupPhase || isDestinationPhase}
