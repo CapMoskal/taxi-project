@@ -4,6 +4,7 @@ import { RideHistoryScreen } from '@/screens/history/RideHistoryScreen'
 import { OrderFlowProvider } from '@/features/order-flow/context'
 import { OfflineBanner } from '@/shared/ui/OfflineBanner'
 import { NavigationProvider } from './NavigationProvider'
+import { ThemeProvider } from './ThemeProvider'
 import { useNavigation } from './navigationContext'
 
 function AppScreens() {
@@ -15,12 +16,14 @@ function AppScreens() {
 
 function App() {
   return (
-    <NavigationProvider>
-      <OrderFlowProvider>
-        <OfflineBanner />
-        <AppScreens />
-      </OrderFlowProvider>
-    </NavigationProvider>
+    <ThemeProvider>
+      <NavigationProvider>
+        <OrderFlowProvider>
+          <OfflineBanner />
+          <AppScreens />
+        </OrderFlowProvider>
+      </NavigationProvider>
+    </ThemeProvider>
   )
 }
 

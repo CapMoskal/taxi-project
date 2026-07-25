@@ -1,7 +1,8 @@
-import { ChevronLeft, ChevronRight, Clock, CreditCard, Star, Wallet } from 'lucide-react'
+import { ChevronRight, Clock, CreditCard, Star, Wallet } from 'lucide-react'
 import { useGetUserProfileQuery } from '@/entities/user/api'
 import { useGetPaymentMethodsQuery } from '@/entities/payment-method/api'
 import { InitialsAvatar } from '@/shared/ui/InitialsAvatar'
+import { ScreenHeader } from '@/shared/ui/ScreenHeader'
 import { useNavigation } from '@/app/navigationContext'
 
 function ProfileScreen() {
@@ -18,17 +19,7 @@ function ProfileScreen() {
 
   return (
     <div className="flex h-dvh w-full flex-col bg-background">
-      <header className="flex items-center gap-2 border-b border-border p-4">
-        <button
-          type="button"
-          onClick={() => navigate('order')}
-          aria-label="Назад"
-          className="rounded-full outline-none ring-ring focus-visible:ring-2"
-        >
-          <ChevronLeft className="h-6 w-6 text-foreground" />
-        </button>
-        <h1 className="text-base font-medium text-foreground">Профиль</h1>
-      </header>
+      <ScreenHeader title="Профиль" onBack={() => navigate('order')} />
 
       <div className="flex-1 overflow-y-auto p-4">
         {isLoading && <p className="text-sm text-muted-foreground">Загружаем профиль…</p>}
