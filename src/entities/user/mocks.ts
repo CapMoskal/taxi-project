@@ -7,7 +7,6 @@ const USER_PROFILE: UserProfile = {
   name: 'Евгений',
   phone: '+7 999 123-45-67',
   rating: 4.95,
-  paymentMethod: { type: 'card', last4: '4242' },
 }
 
 export const userHandlers: HttpHandler[] = [

@@ -1,15 +1,18 @@
 import { ChevronLeft, ChevronRight, Clock, CreditCard, Star, Wallet } from 'lucide-react'
 import { useGetUserProfileQuery } from '@/entities/user/api'
+import { useGetPaymentMethodsQuery } from '@/entities/payment-method/api'
 import { InitialsAvatar } from '@/shared/ui/InitialsAvatar'
 import { useNavigation } from '@/app/navigationContext'
 
 function ProfileScreen() {
   const { navigate } = useNavigation()
   const { data: profile, isLoading, isError } = useGetUserProfileQuery()
+  const { data: paymentMethods } = useGetPaymentMethodsQuery()
 
-  const paymentLabel = profile
-    ? profile.paymentMethod.type === 'card'
-      ? `•••• ${profile.paymentMethod.last4 ?? ''}`.trim()
+  const defaultPaymentMethod = paymentMethods?.find((method) => method.isDefault)
+  const paymentLabel = defaultPaymentMethod
+    ? defaultPaymentMethod.type === 'card'
+      ? `•••• ${defaultPaymentMethod.last4 ?? ''}`.trim()
       : 'Наличные'
     : ''
 
@@ -51,7 +54,7 @@ function ProfileScreen() {
               </div>
               <div className="flex items-center justify-between p-3">
                 <span className="flex items-center gap-2 text-sm text-muted-foreground">
-                  {profile.paymentMethod.type === 'card' ? (
+                  {defaultPaymentMethod?.type === 'card' ? (
                     <CreditCard className="h-4 w-4 text-foreground" />
                   ) : (
                     <Wallet className="h-4 w-4 text-foreground" />

@@ -4,6 +4,8 @@ import { driverApi } from '@/entities/driver/api'
 import { userApi } from '@/entities/user/api'
 import { rideHistoryApi } from '@/entities/ride-history/api'
 import { recentPlaceApi } from '@/entities/recent-place/api'
+import { paymentMethodApi } from '@/entities/payment-method/api'
+import { savedPlaceApi } from '@/entities/saved-place/api'
 import { routingApi } from '@/shared/map/routingApi'
 import { geocodingApi } from '@/shared/map/geocodingApi'
 
@@ -14,6 +16,8 @@ export const store = configureStore({
     [userApi.reducerPath]: userApi.reducer,
     [rideHistoryApi.reducerPath]: rideHistoryApi.reducer,
     [recentPlaceApi.reducerPath]: recentPlaceApi.reducer,
+    [paymentMethodApi.reducerPath]: paymentMethodApi.reducer,
+    [savedPlaceApi.reducerPath]: savedPlaceApi.reducer,
     [routingApi.reducerPath]: routingApi.reducer,
     [geocodingApi.reducerPath]: geocodingApi.reducer,
   },
@@ -24,6 +28,8 @@ export const store = configureStore({
       userApi.middleware,
       rideHistoryApi.middleware,
       recentPlaceApi.middleware,
+      paymentMethodApi.middleware,
+      savedPlaceApi.middleware,
       routingApi.middleware,
       geocodingApi.middleware,
     ),
