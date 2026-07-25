@@ -1,9 +1,18 @@
-import { ChevronRight, Clock, CreditCard, Star, Wallet } from 'lucide-react'
+import { Clock, CreditCard, Headphones, Info, MapPin, Settings, Star, Wallet } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { useGetUserProfileQuery } from '@/entities/user/api'
 import { useGetPaymentMethodsQuery } from '@/entities/payment-method/api'
 import { InitialsAvatar } from '@/shared/ui/InitialsAvatar'
 import { ScreenHeader } from '@/shared/ui/ScreenHeader'
-import { useNavigation } from '@/app/navigationContext'
+import { ListRow } from '@/shared/ui/ListRow'
+import { useNavigation, type Screen } from '@/app/navigationContext'
+
+const QUICK_LINKS: { icon: LucideIcon; label: string; screen: Screen }[] = [
+  { icon: Clock, label: 'Заказы', screen: 'history' },
+  { icon: Headphones, label: 'Поддержка', screen: 'support' },
+  { icon: MapPin, label: 'Адреса', screen: 'addresses' },
+  { icon: Settings, label: 'Настройки', screen: 'settings' },
+]
 
 function ProfileScreen() {
   const { navigate } = useNavigation()
@@ -35,38 +44,54 @@ function ProfileScreen() {
               </div>
             </div>
 
+            <div className="grid grid-cols-4 gap-2">
+              {QUICK_LINKS.map(({ icon: Icon, label, screen }) => (
+                <button
+                  key={screen}
+                  type="button"
+                  onClick={() => navigate(screen)}
+                  className="flex flex-col items-center gap-2 rounded-xl p-2 text-center outline-none ring-ring transition-colors hover:bg-muted focus-visible:ring-2"
+                >
+                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                    <Icon className="h-5 w-5 text-foreground" />
+                  </span>
+                  <span className="text-xs text-muted-foreground">{label}</span>
+                </button>
+              ))}
+            </div>
+
             <div className="flex flex-col divide-y divide-border rounded-xl border border-border">
-              <div className="flex items-center justify-between p-3">
-                <span className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Star className="h-4 w-4 fill-primary text-primary" />
-                  Ваш рейтинг
-                </span>
-                <span className="text-sm font-medium text-foreground">{profile.rating.toFixed(2)}</span>
-              </div>
-              <div className="flex items-center justify-between p-3">
-                <span className="flex items-center gap-2 text-sm text-muted-foreground">
-                  {defaultPaymentMethod?.type === 'card' ? (
+              <ListRow
+                icon={<Star className="h-4 w-4 fill-primary text-primary" />}
+                label="Ваш рейтинг"
+                value={profile.rating.toFixed(2)}
+              />
+              <ListRow
+                icon={
+                  defaultPaymentMethod?.type === 'card' ? (
                     <CreditCard className="h-4 w-4 text-foreground" />
                   ) : (
                     <Wallet className="h-4 w-4 text-foreground" />
-                  )}
-                  Способ оплаты
-                </span>
-                <span className="text-sm font-medium text-foreground">{paymentLabel}</span>
-              </div>
+                  )
+                }
+                label="Способ оплаты"
+                value={paymentLabel}
+                onClick={() => navigate('payment-methods')}
+              />
             </div>
 
-            <button
-              type="button"
-              onClick={() => navigate('history')}
-              className="flex items-center justify-between rounded-xl border border-border p-3 text-left transition-colors hover:bg-muted"
-            >
-              <span className="flex items-center gap-2 text-sm text-foreground">
-                <Clock className="h-4 w-4 text-foreground" />
-                История поездок
-              </span>
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-            </button>
+            <div className="flex flex-col divide-y divide-border rounded-xl border border-border">
+              <ListRow
+                icon={<Clock className="h-4 w-4 text-foreground" />}
+                label="История поездок"
+                onClick={() => navigate('history')}
+              />
+              <ListRow
+                icon={<Info className="h-4 w-4 text-foreground" />}
+                label="Информация"
+                onClick={() => navigate('info')}
+              />
+            </div>
           </div>
         )}
       </div>
