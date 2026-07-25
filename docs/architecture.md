@@ -5,11 +5,14 @@
 ```
 src/
 ├── app/        store (RTK), корневой App, провайдеры, навигация
-├── entities/   доменные сущности: ride-class, driver, user, ride-history (готово) — по мере роадмапа
+├── entities/   доменные сущности: ride-class, driver, user, ride-history,
+│               recent-place, payment-method, saved-place (готово) — по мере роадмапа
 ├── features/   флоу и юзкейсы: order-flow (XState-машина + экраны состояний)
-├── screens/    экраны-контейнеры: order (карта+флоу), profile, history
+├── screens/    экраны-контейнеры: order (карта+флоу), profile (+ подстраницы
+│               payment-methods/addresses/settings/info/support), history
 └── shared/
-    ├── ui/     обёртки над shadcn/ui, переиспользуемые примитивы (BottomSheet, InitialsAvatar)
+    ├── ui/     обёртки над shadcn/ui, переиспользуемые примитивы (BottomSheet,
+    │           InitialsAvatar, ScreenHeader, ListRow, Switch)
     ├── map/    MapLibre-обвязка (MapCanvas), интерполяция маркера по треку
     ├── geo/    чистая геометрия (LatLng, haversineDistanceMeters) — без React/карты
     ├── lib/    мелкие чистые утилиты без домена (formatCurrency.ts)
@@ -21,16 +24,26 @@ src/
 Роутера нет намеренно (см. `_archive/decisions-archive.md`, 2026-07-16) —
 приложение держит «активный экран» в лёгком React-контексте `app/`:
 - `app/navigationContext.ts` — `NavigationContext` + хук `useNavigation()` +
-  тип `Screen` (`'order' | 'profile' | 'history'`). Разбито на два файла с
+  тип `Screen` (`'order' | 'profile' | 'history' | 'payment-methods' |
+  'addresses' | 'settings' | 'info' | 'support'`). Плоский union, без стека —
+  дерево мелкое (order → profile → подстраница), «назад» у всех подстраниц
+  ведёт в profile (см. `decisions.md`, 2026-07-25). Разбито на два файла с
   `NavigationProvider.tsx`, чтобы не мешать компонент и хук в одном модуле
   (`react(only-export-components)`).
-- `app/App.tsx` — `NavigationProvider` → `OrderFlowProvider` → переключатель
-  экранов. **`OrderFlowProvider` поднят сюда** (раньше был внутри
-  `OrderScreen`), чтобы XState-актор жил над переключателем и не сбрасывался
-  при уходе на профиль и обратно.
-- Экраны читают `useNavigation()` напрямую (профиль — back-кнопка + строка в
-  историю, `ProfileButton` (`screens/order/`) — аватар в профиль, история —
-  back в профиль).
+- `app/App.tsx` — `ThemeProvider` → `NavigationProvider` → `OrderFlowProvider`
+  → переключатель экранов. **`OrderFlowProvider` поднят сюда** (раньше был
+  внутри `OrderScreen`), чтобы XState-актор жил над переключателем и не
+  сбрасывался при уходе на профиль и обратно.
+- `app/ThemeProvider.tsx` + `app/themeContext.ts` — реальный переключатель
+  темы (`light|dark|system`), класс `.dark` на `document.documentElement`,
+  персист в `localStorage`, `system` слушает `matchMedia`. Это UI-состояние
+  приложения — намеренно не RTK Query (не серверные/мокнутые данные) и не
+  XState (не флоу заказа), по той же логике, что держит их разделёнными
+  везде в проекте.
+- Экраны читают `useNavigation()` напрямую (профиль — иконки-хаб на 4
+  подстраницы + карточки способа оплаты/истории/информации,
+  `ProfileButton` (`screens/order/`) — аватар в профиль, все подстраницы —
+  back в профиль через общий `shared/ui/ScreenHeader`).
   Фичи (`features/order-flow`) про навигацию не знают — это ответственность
   слоя экранов.
 - **Навигация плоская, без back-стека**: `screen` — одно значение, каждый
