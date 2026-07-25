@@ -18,8 +18,8 @@ src/
 
 ## Навигация между экранами
 
-Роутера нет намеренно (см. `decisions.md`) — приложение держит «активный
-экран» в лёгком React-контексте `app/`:
+Роутера нет намеренно (см. `_archive/decisions-archive.md`, 2026-07-16) —
+приложение держит «активный экран» в лёгком React-контексте `app/`:
 - `app/navigationContext.ts` — `NavigationContext` + хук `useNavigation()` +
   тип `Screen` (`'order' | 'profile' | 'history'`). Разбито на два файла с
   `NavigationProvider.tsx`, чтобы не мешать компонент и хук в одном модуле
@@ -196,7 +196,8 @@ completed (parallel: payment/rating) → done → (RESET) → selectingPickup`.
    dev, и в prod. RTK Query выбран ради кеша-по-аргументам и дедупа: линия
    маршрута (`OrderScreen`) и анимация водителя (`useRideAutomation`)
    запрашивают один и тот же `pickup→destination` и схлопываются в один
-   сетевой запрос. См. `decisions.md`. **`shared/map/geocodingApi.ts`** —
+   сетевой запрос. См. `_archive/decisions-archive.md` (2026-07-20).
+   **`shared/map/geocodingApi.ts`** —
    тот же паттерн, для MapTiler Geocoding (forward-поиск адреса +
    reverse-геокодинг), общий ключ с тайлами (`shared/map/config.ts`
    экспортирует `MAPTILER_KEY`). `entities/recent-place/` — наоборот,
@@ -234,7 +235,8 @@ completed (parallel: payment/rating) → done → (RESET) → selectingPickup`.
    **Важно:** цвета маркеров (`var(--primary)` и т.п.) резолвятся браузером
    нативно (SVG `fill`), но MapLibre `paint`-свойства слоёв (WebGL) CSS
    custom properties и `oklch()` не понимают — для линий маршрута цвет
-   квантуется через `resolveCssColor()` (canvas 1×1), см. `decisions.md`.
+   квантуется через `resolveCssColor()` (canvas 1×1), см.
+   `_archive/decisions-archive.md` (2026-07-15).
    `routeLine` — реальная road-геометрия из `routingApi` (OSRM), не прямая
    A→Б; та же геометрия кормит анимацию маркера в `useRideAutomation`
    (`useAnimatedPosition` интерполирует по многоточечной полилинии). Обе
@@ -285,4 +287,4 @@ runtime-кэш тайлов MapTiler, оставили установку и б�
 
 `@/*` → `src/*`, настроено и в `vite.config.ts` (resolve.alias), и в
 `tsconfig.app.json` + продублировано в корневом `tsconfig.json` (нужно для
-корректной работы `shadcn` CLI — см. `decisions.md`).
+корректной работы `shadcn` CLI — см. `_archive/decisions-scaffold.md`).

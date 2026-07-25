@@ -46,8 +46,12 @@ npm run test:e2e  # @playwright/test — регресс-сеть (обязате
 
 - `docs/architecture.md` — слои (app/entities/features/screens/shared), как
   стыкуются RTK Query / XState / MSW / MapLibre.
-- `docs/decisions.md` — ADR-лог по фичам. Грабли скаффолда (Vite 8→6, shadcn
-  alias-баг и т.п.) — в `docs/_archive/decisions-scaffold.md`.
+- `docs/decisions.md` — ADR-лог по фичам (записи с 2026-07-23). Грабли
+  скаффолда (Vite 8→6, shadcn alias-баг и т.п.) — в
+  `docs/_archive/decisions-scaffold.md`; фичи 2026-07-15 — 2026-07-20
+  (MapTiler/rAF-маркер, bottom-sheet классов, поиск водителя, PWA-полировка,
+  геолокация, OSRM, DestinationSheet) — в
+  `docs/_archive/decisions-archive.md`.
 - `docs/roadmap.md` — фича-за-фичей план, меняется по ходу. Подробности по
   завершённым пунктам — `docs/_archive/roadmap-done.md`.
 - `.claude/rules/design-tokens.md` — «светлый минимализм», изумрудный
