@@ -74,6 +74,28 @@ function toGeoJsonLine(points: LatLng[]): GeoJSON.Feature<GeoJSON.LineString> {
   }
 }
 
+// Extracted so both the routeLine-change effect AND the style-switch effect
+// (setStyle() wipes custom sources/layers, see below) can re-apply it.
+function applyRouteLine(map: maplibregl.Map, routeLine: LatLng[] | null | undefined) {
+  const feature = toGeoJsonLine(routeLine && routeLine.length >= 2 ? routeLine : [])
+  const source = map.getSource(ROUTE_LINE_SOURCE_ID) as maplibregl.GeoJSONSource | undefined
+  if (source) {
+    source.setData(feature)
+    return
+  }
+  map.addSource(ROUTE_LINE_SOURCE_ID, { type: 'geojson', data: feature })
+  map.addLayer({
+    id: ROUTE_LINE_SOURCE_ID,
+    type: 'line',
+    source: ROUTE_LINE_SOURCE_ID,
+    // Re-resolved here (not cached) — by the time this runs, the theme
+    // switch that triggered setStyle() has already flipped the .dark class,
+    // so --foreground resolves to the correct light-on-dark/dark-on-light
+    // value for whichever style we just switched to.
+    paint: { 'line-color': resolveCssColor('var(--foreground)'), 'line-width': 4 },
+  })
+}
+
 function MapCanvas({
   className,
   center = DEFAULT_CENTER,
@@ -87,6 +109,9 @@ function MapCanvas({
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const markersRef = useRef<Map<string, maplibregl.Marker>>(new Map())
+  const routeLineRef = useRef(routeLine)
+  const previousStyleUrlRef = useRef(styleUrl)
+  routeLineRef.current = routeLine
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -138,25 +163,42 @@ function MapCanvas({
     const map = mapRef.current
     if (!map) return
 
-    const applyRouteLine = () => {
-      const feature = toGeoJsonLine(routeLine && routeLine.length >= 2 ? routeLine : [])
-      const source = map.getSource(ROUTE_LINE_SOURCE_ID) as maplibregl.GeoJSONSource | undefined
-      if (source) {
-        source.setData(feature)
-        return
-      }
-      map.addSource(ROUTE_LINE_SOURCE_ID, { type: 'geojson', data: feature })
-      map.addLayer({
-        id: ROUTE_LINE_SOURCE_ID,
-        type: 'line',
-        source: ROUTE_LINE_SOURCE_ID,
-        paint: { 'line-color': resolveCssColor('var(--foreground)'), 'line-width': 4 },
-      })
-    }
-
-    if (map.isStyleLoaded()) applyRouteLine()
-    else map.once('load', applyRouteLine)
+    const run = () => applyRouteLine(map, routeLine)
+    if (map.isStyleLoaded()) run()
+    else map.once('load', run)
   }, [routeLine])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    // Skip on mount — the map was already constructed with this styleUrl.
+    if (previousStyleUrlRef.current === styleUrl) return
+    previousStyleUrlRef.current = styleUrl
+
+    map.setStyle(styleUrl)
+    // setStyle() wipes the route-line source/layer along with everything
+    // else from the old style — re-add it once the new style has parsed.
+    // DOM markers (maplibregl.Marker) aren't part of the style, so they
+    // survive setStyle() untouched and need no re-attachment here.
+    //
+    // `isStyleLoaded()` is NOT trustworthy synchronously right after our own
+    // `setStyle()` call — it can still reflect the outgoing style's "loaded"
+    // state for a moment before the swap actually starts, so checking it
+    // immediately (like the routeLine effect below does for the *initial*
+    // style load) races the real swap: we'd add the layer to the
+    // about-to-be-replaced style, which then gets wiped seconds later with
+    // no listener left to reapply it (found via manual testing — the layer
+    // would appear for one frame, then vanish). Instead: `styledata` fires
+    // repeatedly during a style transition, and only some firings have
+    // `isStyleLoaded()` true for the *new* style — poll on every firing
+    // until it is, then detach.
+    const tryApply = () => {
+      if (!map.isStyleLoaded()) return
+      map.off('styledata', tryApply)
+      applyRouteLine(map, routeLineRef.current)
+    }
+    map.on('styledata', tryApply)
+  }, [styleUrl])
 
   return (
     <div className={cn('relative h-full w-full', className)} data-slot="map-canvas">

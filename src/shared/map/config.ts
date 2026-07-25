@@ -5,3 +5,4 @@ if (import.meta.env.DEV && !MAPTILER_KEY) {
 }
 
 export const MAPTILER_STYLE_URL = `https://api.maptiler.com/maps/basic-v2/style.json?key=${MAPTILER_KEY}`
+export const MAPTILER_STYLE_URL_DARK = `https://api.maptiler.com/maps/basic-v2-dark/style.json?key=${MAPTILER_KEY}`
