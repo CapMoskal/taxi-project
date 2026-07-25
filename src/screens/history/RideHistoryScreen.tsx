@@ -1,7 +1,8 @@
-import { ArrowRight, ChevronLeft, Star } from 'lucide-react'
+import { ArrowRight, Star } from 'lucide-react'
 import { useGetRideHistoryQuery } from '@/entities/ride-history/api'
 import type { RideHistoryEntry } from '@/entities/ride-history/types'
 import { formatCurrencyRUB } from '@/shared/lib/formatCurrency'
+import { ScreenHeader } from '@/shared/ui/ScreenHeader'
 import { useNavigation } from '@/app/navigationContext'
 
 const dateFormatter = new Intl.DateTimeFormat('ru-RU', {
@@ -44,17 +45,7 @@ function RideHistoryScreen() {
 
   return (
     <div className="flex h-dvh w-full flex-col bg-background">
-      <header className="flex items-center gap-2 border-b border-border p-4">
-        <button
-          type="button"
-          onClick={() => navigate('profile')}
-          aria-label="Назад"
-          className="rounded-full outline-none ring-ring focus-visible:ring-2"
-        >
-          <ChevronLeft className="h-6 w-6 text-foreground" />
-        </button>
-        <h1 className="text-base font-medium text-foreground">История поездок</h1>
-      </header>
+      <ScreenHeader title="История поездок" onBack={() => navigate('profile')} />
 
       <div className="flex-1 overflow-y-auto p-4">
         {isLoading && <p className="text-sm text-muted-foreground">Загружаем поездки…</p>}
