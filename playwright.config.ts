@@ -1,4 +1,4 @@
-import { defineConfig, devices } from '@playwright/test'
+import { defineConfig } from '@playwright/test'
 
 // Targets the dev server, not preview/prod: MSW behaves identically in both,
 // but the window.__map test hook (OrderScreen.tsx) only exists in DEV — the
@@ -19,7 +19,16 @@ export default defineConfig({
     locale: 'ru-RU',
     trace: 'retain-on-failure',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  // NOT `devices['Desktop Chrome']` — that preset carries its own
+  // `viewport: {1280,720}`, which silently overrides the mobile-first
+  // `viewport` set in the global `use` block above (project-level `use` wins
+  // per-key over global). Found 2026-07-27 while adding the first
+  // lg:-breakpoint-sensitive e2e assertions: every test without an explicit
+  // `test.use({ viewport })` had actually been running at 1280×720 all
+  // along, not the intended 375×667 — invisible before responsive layout
+  // existed to differ between the two. `browserName` defaults to 'chromium'
+  // without any device preset, so dropping it doesn't change which engine runs.
+  projects: [{ name: 'chromium', use: {} }],
   webServer: {
     command: 'npm run dev',
     url: 'http://localhost:5173',
