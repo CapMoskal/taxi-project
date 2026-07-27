@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { skipToken } from '@reduxjs/toolkit/query/react'
 import { AnimatePresence } from 'motion/react'
 import type maplibregl from 'maplibre-gl'
@@ -8,6 +8,7 @@ import { MAPTILER_STYLE_URL, MAPTILER_STYLE_URL_DARK } from '@/shared/map/config
 import { roadOrStraight, useGetRouteQuery } from '@/shared/map/routingApi'
 import { useMapCameraFollow } from '@/shared/map/useMapCameraFollow'
 import type { CameraPadding } from '@/shared/map/useMapCameraFollow'
+import { useIsDesktop } from '@/shared/lib/useIsDesktop'
 import { useTheme } from '@/app/themeContext'
 import { useOrderFlowSelector } from '@/features/order-flow/context'
 import { PickupResolver } from '@/features/order-flow/PickupResolver'
@@ -24,9 +25,11 @@ import { ProfileButton } from './ProfileButton'
 
 // Bottom-sheet phases (ClassPickerSheet/DriverSearchPanel) need bottom room;
 // DriverCard phases need top room instead — so the framed points don't hide
-// behind either overlay.
+// behind either overlay. Desktop has no such overlays (phase UI lives in the
+// rail, not on top of the map) — a small uniform padding is enough there.
 const BOTTOM_SHEET_PADDING: CameraPadding = { top: 80, bottom: 260, left: 40, right: 40 }
 const DRIVER_CARD_PADDING: CameraPadding = { top: 160, bottom: 80, left: 40, right: 40 }
+const DESKTOP_PADDING: CameraPadding = { top: 40, bottom: 40, left: 40, right: 40 }
 
 function OrderScreen() {
   const mapRef = useRef<maplibregl.Map | null>(null)
@@ -34,6 +37,7 @@ function OrderScreen() {
   const { position: driverPosition } = useRideAutomation()
   const { resolvedTheme } = useTheme()
   const mapStyleUrl = resolvedTheme === 'dark' ? MAPTILER_STYLE_URL_DARK : MAPTILER_STYLE_URL
+  const isDesktop = useIsDesktop()
 
   const isPickupPhase = snapshot.matches('selectingPickup')
   const isDestinationPhase = snapshot.matches('selectingDestination')
@@ -41,6 +45,15 @@ function OrderScreen() {
   const isDriverCardOverview = snapshot.matches('driverAssigned') || snapshot.matches('arrived')
   const isEnRoute = snapshot.matches('enRoute')
   const isInRide = snapshot.matches('inRide')
+
+  // The rail (aside) and the map area sit side by side via flex, not
+  // overlaid — MapLibre's default `trackResize` only listens for `window`
+  // resize events, so crossing the breakpoint (rail appearing/disappearing,
+  // which changes the map area's width without the window itself resizing)
+  // needs an explicit nudge or the canvas keeps rendering at its stale size.
+  useEffect(() => {
+    mapRef.current?.resize()
+  }, [isDesktop])
 
   const markers: MapMarker[] = []
   // "You are here" (real GPS) — visible from the very first screen, as soon as it resolves.
@@ -67,58 +80,87 @@ function OrderScreen() {
   // picking a class / waiting for the driver — no camera control elsewhere
   // (selection/completion phases have their own jumpTo/sheets).
   let cameraBounds: typeof routeLine = null
-  let cameraPadding: CameraPadding = BOTTOM_SHEET_PADDING
+  let mobilePadding: CameraPadding = BOTTOM_SHEET_PADDING
   if (isEnRoute && driverPosition && pickup) {
     cameraBounds = [driverPosition, pickup]
-    cameraPadding = DRIVER_CARD_PADDING
+    mobilePadding = DRIVER_CARD_PADDING
   } else if (isInRide && driverPosition && destination) {
     cameraBounds = [driverPosition, destination]
-    cameraPadding = DRIVER_CARD_PADDING
+    mobilePadding = DRIVER_CARD_PADDING
   } else if (isDriverCardOverview && pickup && destination) {
     cameraBounds = [pickup, destination]
-    cameraPadding = DRIVER_CARD_PADDING
+    mobilePadding = DRIVER_CARD_PADDING
   } else if (isBottomSheetOverview && pickup && destination) {
     cameraBounds = [pickup, destination]
-    cameraPadding = BOTTOM_SHEET_PADDING
+    mobilePadding = BOTTOM_SHEET_PADDING
   }
+  const cameraPadding = isDesktop ? DESKTOP_PADDING : mobilePadding
   useMapCameraFollow(mapRef, { bounds: cameraBounds, enabled: cameraBounds !== null, padding: cameraPadding })
 
   return (
-    <div className="relative h-full w-full overflow-hidden">
-      <MapCanvas
-        className="absolute inset-0"
-        center={[DEMO_PICKUP.lng, DEMO_PICKUP.lat]}
-        zoom={14}
-        styleUrl={mapStyleUrl}
-        markers={markers}
-        routeLine={routeLine}
-        showCenterPin={isPickupPhase || isDestinationPhase}
-        onMapLoad={(map) => {
-          mapRef.current = map
-          // Dev-only test hook — lets Playwright read the real camera state
-          // (getCenter/getZoom) instead of inferring it from marker screen
-          // positions, which are confounded by the taxi's own movement.
-          if (import.meta.env.DEV) (window as unknown as { __map?: maplibregl.Map }).__map = map
-        }}
-      />
+    <div className="relative flex h-full w-full overflow-hidden">
+      {/* Desktop rail — hosts exactly one phase's UI at a time, same guards as
+          the mobile overlay below. `isDesktop &&` (not just the `hidden lg:flex`
+          on the element) keeps this from *mounting* a second live instance of
+          whichever phase component is already mounted in the mobile overlay —
+          each has side effects (map listeners, actorRef.send) that must only
+          run once. */}
+      <aside
+        className="hidden lg:flex lg:w-[380px] lg:shrink-0 lg:flex-col lg:overflow-y-auto lg:border-r lg:border-border"
+        data-slot="order-rail"
+      >
+        {isDesktop && (
+          <>
+            {isPickupPhase && <PickupSheet mapRef={mapRef} />}
+            {isDestinationPhase && <DestinationSheet mapRef={mapRef} />}
+            {snapshot.matches('selectingClass') && <ClassPickerSheet />}
+            {snapshot.matches('searchingDriver') && <DriverSearchPanel />}
+            <DriverCard />
+            {snapshot.matches('completed') && <RideCompletionSheet />}
+            {snapshot.matches('done') && <RideDoneCard />}
+          </>
+        )}
+      </aside>
 
-      {isPickupPhase && (
-        <>
-          <PickupResolver mapRef={mapRef} />
-          <PickupSheet mapRef={mapRef} />
-          <ProfileButton />
-        </>
-      )}
-      {isDestinationPhase && <DestinationSheet mapRef={mapRef} />}
+      <div className="relative h-full flex-1 overflow-hidden" data-slot="order-map-area">
+        <MapCanvas
+          className="absolute inset-0"
+          center={[DEMO_PICKUP.lng, DEMO_PICKUP.lat]}
+          zoom={14}
+          styleUrl={mapStyleUrl}
+          markers={markers}
+          routeLine={routeLine}
+          showCenterPin={isPickupPhase || isDestinationPhase}
+          onMapLoad={(map) => {
+            mapRef.current = map
+            // Dev-only test hook — lets Playwright read the real camera state
+            // (getCenter/getZoom) instead of inferring it from marker screen
+            // positions, which are confounded by the taxi's own movement.
+            if (import.meta.env.DEV) (window as unknown as { __map?: maplibregl.Map }).__map = map
+          }}
+        />
 
-      <AnimatePresence>
-        {snapshot.matches('selectingClass') && <ClassPickerSheet key="class-picker" />}
-        {snapshot.matches('searchingDriver') && <DriverSearchPanel key="driver-search" />}
-        {snapshot.matches('completed') && <RideCompletionSheet key="ride-completion" />}
-        {snapshot.matches('done') && <RideDoneCard key="ride-done" />}
-      </AnimatePresence>
+        {/* Headless + mobile-only-by-its-own-CSS, so these run regardless of
+            which rail/overlay branch is active. */}
+        {isPickupPhase && <PickupResolver mapRef={mapRef} />}
+        {isPickupPhase && <ProfileButton />}
 
-      <DriverCard />
+        {!isDesktop && (
+          <>
+            {isPickupPhase && <PickupSheet mapRef={mapRef} />}
+            {isDestinationPhase && <DestinationSheet mapRef={mapRef} />}
+
+            <AnimatePresence>
+              {snapshot.matches('selectingClass') && <ClassPickerSheet key="class-picker" />}
+              {snapshot.matches('searchingDriver') && <DriverSearchPanel key="driver-search" />}
+              {snapshot.matches('completed') && <RideCompletionSheet key="ride-completion" />}
+              {snapshot.matches('done') && <RideDoneCard key="ride-done" />}
+            </AnimatePresence>
+
+            <DriverCard />
+          </>
+        )}
+      </div>
     </div>
   )
 }

@@ -3,7 +3,7 @@ import { motion } from 'motion/react'
 import { useEffect } from 'react'
 import { useSearchDriverQuery } from '@/entities/driver/api'
 import { Button } from '@/components/ui/button'
-import { BottomSheet } from '@/shared/ui/BottomSheet'
+import { OrderSurface } from '@/shared/ui/OrderSurface'
 import { useOrderFlowActorRef, useOrderFlowSelector } from './context'
 
 function DriverSearchPanel() {
@@ -19,7 +19,7 @@ function DriverSearchPanel() {
   }, [data, actorRef])
 
   return (
-    <BottomSheet>
+    <OrderSurface>
       {isFetching && (
         <motion.p
           animate={{ opacity: [0.4, 1, 0.4] }}
@@ -46,7 +46,7 @@ function DriverSearchPanel() {
       >
         Отменить
       </button>
-    </BottomSheet>
+    </OrderSurface>
   )
 }
 
