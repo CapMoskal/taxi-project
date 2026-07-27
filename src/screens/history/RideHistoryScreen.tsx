@@ -2,7 +2,7 @@ import { ArrowRight, Star } from 'lucide-react'
 import { useGetRideHistoryQuery } from '@/entities/ride-history/api'
 import type { RideHistoryEntry } from '@/entities/ride-history/types'
 import { formatCurrencyRUB } from '@/shared/lib/formatCurrency'
-import { ScreenHeader } from '@/shared/ui/ScreenHeader'
+import { ScreenShell } from '@/shared/ui/ScreenShell'
 import { useNavigation } from '@/app/navigationContext'
 
 const dateFormatter = new Intl.DateTimeFormat('ru-RU', {
@@ -44,23 +44,19 @@ function RideHistoryScreen() {
   const { data: rides, isLoading, isError } = useGetRideHistoryQuery()
 
   return (
-    <div className="flex h-dvh w-full flex-col bg-background">
-      <ScreenHeader title="История поездок" onBack={() => navigate('profile')} />
+    <ScreenShell title="История поездок" onBack={() => navigate('profile')}>
+      {isLoading && <p className="text-sm text-muted-foreground">Загружаем поездки…</p>}
+      {isError && <p className="text-sm text-destructive">Не удалось загрузить историю.</p>}
+      {rides && rides.length === 0 && <p className="text-sm text-muted-foreground">Поездок пока нет.</p>}
 
-      <div className="flex-1 overflow-y-auto p-4">
-        {isLoading && <p className="text-sm text-muted-foreground">Загружаем поездки…</p>}
-        {isError && <p className="text-sm text-destructive">Не удалось загрузить историю.</p>}
-        {rides && rides.length === 0 && <p className="text-sm text-muted-foreground">Поездок пока нет.</p>}
-
-        {rides && rides.length > 0 && (
-          <div className="flex flex-col gap-3">
-            {rides.map((entry) => (
-              <RideHistoryRow key={entry.id} entry={entry} />
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+      {rides && rides.length > 0 && (
+        <div className="flex flex-col gap-3">
+          {rides.map((entry) => (
+            <RideHistoryRow key={entry.id} entry={entry} />
+          ))}
+        </div>
+      )}
+    </ScreenShell>
   )
 }
 

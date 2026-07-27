@@ -8,6 +8,7 @@ import { InfoScreen } from '@/screens/profile/InfoScreen'
 import { SupportScreen } from '@/screens/profile/SupportScreen'
 import { OrderFlowProvider } from '@/features/order-flow/context'
 import { OfflineBanner } from '@/shared/ui/OfflineBanner'
+import { DesktopNavbar } from '@/screens/_layout/DesktopNavbar'
 import { NavigationProvider } from './NavigationProvider'
 import { ThemeProvider } from './ThemeProvider'
 import { useNavigation } from './navigationContext'
@@ -30,7 +31,12 @@ function App() {
       <NavigationProvider>
         <OrderFlowProvider>
           <OfflineBanner />
-          <AppScreens />
+          <div className="flex h-dvh w-full flex-col overflow-hidden">
+            <DesktopNavbar />
+            <div className="min-h-0 flex-1">
+              <AppScreens />
+            </div>
+          </div>
         </OrderFlowProvider>
       </NavigationProvider>
     </ThemeProvider>

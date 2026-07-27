@@ -84,7 +84,7 @@ function OrderScreen() {
   useMapCameraFollow(mapRef, { bounds: cameraBounds, enabled: cameraBounds !== null, padding: cameraPadding })
 
   return (
-    <div className="relative h-dvh w-full overflow-hidden">
+    <div className="relative h-full w-full overflow-hidden">
       <MapCanvas
         className="absolute inset-0"
         center={[DEMO_PICKUP.lng, DEMO_PICKUP.lat]}
