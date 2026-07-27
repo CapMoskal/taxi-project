@@ -9,10 +9,11 @@ src/
 │               recent-place, payment-method, saved-place (готово) — по мере роадмапа
 ├── features/   флоу и юзкейсы: order-flow (XState-машина + экраны состояний)
 ├── screens/    экраны-контейнеры: order (карта+флоу), profile (+ подстраницы
-│               payment-methods/addresses/settings/info/support), history
+│               payment-methods/addresses/settings/info/support), history,
+│               _layout (десктоп-хром: DesktopNavbar, не экран сам по себе)
 └── shared/
     ├── ui/     обёртки над shadcn/ui, переиспользуемые примитивы (BottomSheet,
-    │           InitialsAvatar, ScreenHeader, ListRow, Switch)
+    │           InitialsAvatar, ScreenHeader, ScreenShell, ListRow, Switch)
     ├── map/    MapLibre-обвязка (MapCanvas), интерполяция маркера по треку
     ├── geo/    чистая геометрия (LatLng, haversineDistanceMeters) — без React/карты
     ├── lib/    мелкие чистые утилиты без домена (formatCurrency.ts)
@@ -59,6 +60,29 @@ src/
 координаты) нужна и рендерингу карты, и MSW-хендлерам расчёта цены
 (`entities/ride-class/mocks.ts`) — а mock-слой не должен зависеть от
 карт-рендеринга. `shared/map` не импортируется из `entities/*`.
+
+## Responsive / десктоп (с 2026-07-27)
+
+Брейкпоинт — **`lg` (1024px)**, единственный в проекте (см. `decisions.md`,
+эпик 2a/2b/2c). Мобильный — дефолт без префикса, десктоп — `lg:`-варианты.
+
+- **Корень (`app/App.tsx`) владеет `h-dvh flex-col`, не экраны.**
+  `DesktopNavbar` (`screens/_layout/`, `shrink-0`, сам `hidden lg:flex`)
+  сверху, область экрана — `flex-1 min-h-0`. Экраны (`OrderScreen`,
+  `ScreenShell`) заполняют выданное место через `h-full`, не `h-dvh` —
+  иначе с навбаром сверху вьюпорт был бы превышен.
+- **`shared/ui/ScreenShell`** — общий каркас контентных экранов
+  (Profile/History/подстраницы профиля): `ScreenHeader` + центрированная
+  колонка `lg:max-w-2xl`. Экран заказа (`OrderScreen`) свой каркас не
+  использует — карта на весь экран, это другая композиция (двухколоночная
+  панель заказа — 2b, ещё не реализована; сейчас на десктопе те же
+  bottom-sheet'ы, что на мобильном, просто капнутые по ширине и докнутые
+  в угол как интерим, см. `BottomSheet.tsx`).
+- **`screens/_layout/DesktopNavbar.tsx`** — десктоп-хром, не экран
+  (не участвует в `Screen`-union/`navigationContext`). Аватар в навбаре
+  дублирует переход в профиль, который на мобильном делает плавающий
+  `ProfileButton` (`screens/order/`) — тот получил `lg:hidden`, а не
+  удалён, чтобы мобильное поведение было буквально нетронутым.
 
 ## `features/order-flow` — детально
 
