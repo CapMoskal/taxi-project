@@ -13,10 +13,10 @@ src/
 │               _layout (десктоп-хром: DesktopNavbar, не экран сам по себе)
 └── shared/
     ├── ui/     обёртки над shadcn/ui, переиспользуемые примитивы (BottomSheet,
-    │           InitialsAvatar, ScreenHeader, ScreenShell, ListRow, Switch)
+    │           OrderSurface, InitialsAvatar, ScreenHeader, ScreenShell, ListRow, Switch)
     ├── map/    MapLibre-обвязка (MapCanvas), интерполяция маркера по треку
     ├── geo/    чистая геометрия (LatLng, haversineDistanceMeters) — без React/карты
-    ├── lib/    мелкие чистые утилиты без домена (formatCurrency.ts)
+    ├── lib/    мелкие чистые утилиты без домена (formatCurrency.ts, useIsDesktop.ts)
     └── mocks/  MSW handlers (ре-экспорт из entities/*/mocks.ts) + browser.ts
 ```
 
@@ -73,16 +73,30 @@ src/
   иначе с навбаром сверху вьюпорт был бы превышен.
 - **`shared/ui/ScreenShell`** — общий каркас контентных экранов
   (Profile/History/подстраницы профиля): `ScreenHeader` + центрированная
-  колонка `lg:max-w-2xl`. Экран заказа (`OrderScreen`) свой каркас не
-  использует — карта на весь экран, это другая композиция (двухколоночная
-  панель заказа — 2b, ещё не реализована; сейчас на десктопе те же
-  bottom-sheet'ы, что на мобильном, просто капнутые по ширине и докнутые
-  в угол как интерим, см. `BottomSheet.tsx`).
+  колонка `lg:max-w-2xl`.
 - **`screens/_layout/DesktopNavbar.tsx`** — десктоп-хром, не экран
   (не участвует в `Screen`-union/`navigationContext`). Аватар в навбаре
   дублирует переход в профиль, который на мобильном делает плавающий
   `ProfileButton` (`screens/order/`) — тот получил `lg:hidden`, а не
   удалён, чтобы мобильное поведение было буквально нетронутым.
+- **Экран заказа (`OrderScreen`) — свой каркас, не `ScreenShell`**: карта
+  на весь экран, это другая композиция. На десктопе — двухколоночный
+  shell: `<aside>` рельс 380px (`lg:flex`, `hidden` на мобильном) + карта
+  `flex-1`. Флоу остаётся ПОШАГОВЫМ на обоих брейкпоинтах (композиция
+  «всё сразу» — 2c, ещё впереди) — единственное, что меняется на
+  десктопе — КУДА монтируется UI текущей фазы: в рельс вместо оверлея
+  над картой. `useIsDesktop()` (`shared/lib/`, реактивный `matchMedia`)
+  решает это на уровне `OrderScreen`, гейтуя `isDesktop &&`/`!isDesktop &&`
+  так, что каждый фаза-компонент существует РОВНО в одном месте —
+  задвоить его означало бы задвоить и побочные эффекты (map-листенеры,
+  `actorRef.send`). `shared/ui/OrderSurface` — sheet↔panel для «простых»
+  фаз (мобильный: `BottomSheet` как раньше; десктоп: плоский блок в
+  рельсе); `PickupSheet`/`DestinationSheet`/`DriverCard` — bespoke-форк
+  вручную (плавающая pill/карточка на мобильном против первой строки
+  рельс-блока на десктопе), см. `decisions.md` (2026-07-27) для
+  подробностей — особенно `DestinationSheet`, где визуальная физика
+  шторки (мобильная) отделена от логики синка адреса при движении карты
+  (общая для обеих веток).
 
 ## `features/order-flow` — детально
 
