@@ -1,7 +1,7 @@
 import { skipToken } from '@reduxjs/toolkit/query/react'
 import { useGetRideClassQuotesQuery } from '@/entities/ride-class/api'
 import { Button } from '@/components/ui/button'
-import { BottomSheet } from '@/shared/ui/BottomSheet'
+import { OrderSurface } from '@/shared/ui/OrderSurface'
 import { formatCurrencyRUB } from '@/shared/lib/formatCurrency'
 import { cn } from '@/lib/utils'
 import { useOrderFlowActorRef, useOrderFlowSelector } from './context'
@@ -19,7 +19,7 @@ function ClassPickerSheet() {
   const selectedQuote = quotes?.find((quote) => quote.classId === selectedClassId)
 
   return (
-    <BottomSheet>
+    <OrderSurface>
       <h2 className="mb-3 text-base font-medium text-foreground">Выберите класс</h2>
 
       {isLoading && <p className="text-sm text-muted-foreground">Считаем цену…</p>}
@@ -63,7 +63,7 @@ function ClassPickerSheet() {
       >
         Назад
       </button>
-    </BottomSheet>
+    </OrderSurface>
   )
 }
 

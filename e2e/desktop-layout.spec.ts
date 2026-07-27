@@ -38,6 +38,41 @@ test.describe('desktop layout (lg breakpoint)', () => {
     await expect(floatingButtons).toHaveCount(2) // navbar + OrderScreen's (hidden via lg:hidden)
     await expect(floatingButtons.nth(1)).toBeHidden()
   })
+
+  test('order flow renders phase UI in the rail, not as a map overlay', async ({ page }) => {
+    await page.goto('/')
+
+    // No floating pickup-pill on desktop — PickupSheet renders a plain rail
+    // block instead (see PickupSheet.tsx).
+    await expect(page.locator('[data-slot="pickup-pill"]')).toHaveCount(0)
+    const rail = page.locator('[data-slot="order-rail"]')
+    await expect(rail.locator('[data-slot="pickup-rail"]')).toBeVisible()
+
+    // Rail and map area are real flex siblings, not stacked/overlaid — the
+    // map area must start where the rail ends, not underneath it.
+    const railBox = (await rail.boundingBox())!
+    const mapAreaBox = (await page.locator('[data-slot="order-map-area"]').boundingBox())!
+    expect(mapAreaBox.x).toBeGreaterThanOrEqual(railBox.x + railBox.width)
+
+    await rail.locator('[data-slot="pickup-where-to"]').click()
+    await expect(rail.locator('[data-slot="destination-rail"]')).toBeVisible()
+
+    await rail.getByRole('button', { name: 'Подтвердить точку назначения' }).click()
+    await expect(rail.getByRole('heading', { name: 'Выберите класс' })).toBeVisible()
+
+    // Road-following route still renders on the map behind the rail (2b keeps
+    // the A/B selection interaction and routing untouched, only relocates
+    // the phase chrome) — same regression check as pickup-destination.spec.ts.
+    const coordsLength = await page.evaluate(() => {
+      const map = (window as unknown as { __map?: import('maplibre-gl').Map }).__map
+      const src = map?.getSource('route-line') as unknown as
+        | { _data?: { geojson?: { geometry?: { coordinates?: unknown[] } } } }
+        | undefined
+      return src?._data?.geojson?.geometry?.coordinates?.length ?? null
+    })
+    expect(coordsLength).not.toBeNull()
+    expect(coordsLength!).toBeGreaterThan(2)
+  })
 })
 
 test.describe('mobile layout (default viewport, unaffected)', () => {

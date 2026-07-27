@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { BottomSheet } from '@/shared/ui/BottomSheet'
+import { OrderSurface } from '@/shared/ui/OrderSurface'
 import { formatCurrencyRUB } from '@/shared/lib/formatCurrency'
 import { haversineDistanceMeters } from '@/shared/geo/distance'
 import { cn } from '@/lib/utils'
@@ -29,7 +29,7 @@ function RideCompletionSheet() {
   const distanceKm = pickup && destination ? haversineDistanceMeters(pickup, destination) / 1000 : 0
 
   return (
-    <BottomSheet>
+    <OrderSurface>
       <h2 className="mb-3 text-base font-medium text-foreground">Поездка завершена</h2>
 
       <div className="mb-4 flex flex-col gap-1 rounded-lg border border-border p-3 text-sm">
@@ -103,7 +103,7 @@ function RideCompletionSheet() {
           <p className="text-sm text-muted-foreground">Спасибо за оценку{rating ? ` — ${rating.stars} из 5` : ''}!</p>
         )}
       </div>
-    </BottomSheet>
+    </OrderSurface>
   )
 }
 

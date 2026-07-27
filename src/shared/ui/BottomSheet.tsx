@@ -16,9 +16,13 @@ function BottomSheet({ children, className }: BottomSheetProps) {
       transition={{ type: 'spring', damping: 30, stiffness: 300 }}
       className={cn(
         'absolute inset-x-0 bottom-0 z-20 rounded-t-2xl border-t border-border bg-background p-4 shadow-lg',
-        // Interim desktop treatment (2b docks this properly into the order
-        // panel) — full-width sheets look broken on wide viewports, so cap
-        // and dock to the bottom-left corner instead of edge-to-edge.
+        // Order-flow phases no longer render this on desktop at all — they go
+        // through OrderSurface, which forks to a flat rail block instead (see
+        // shared/ui/OrderSurface.tsx). This lg: docking now only fires for
+        // BottomSheet's one remaining direct desktop consumer,
+        // PaymentMethodsScreen's AddCardSheet — a real modal-like overlay
+        // outside the order rail, where capping+docking (vs. edge-to-edge)
+        // still makes sense on wide viewports.
         'lg:inset-x-auto lg:left-4 lg:w-full lg:max-w-sm lg:rounded-2xl lg:border',
         className,
       )}

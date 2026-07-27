@@ -1,8 +1,12 @@
 import { Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InitialsAvatar } from '@/shared/ui/InitialsAvatar'
+import { useIsDesktop } from '@/shared/lib/useIsDesktop'
 import { useOrderFlowActorRef, useOrderFlowSelector } from './context'
 
+// Mounted by OrderScreen in the desktop rail or as a mobile map overlay,
+// never both — see PickupSheet.tsx for why useIsDesktop() here (chrome only)
+// stays in sync with where OrderScreen chose to mount it.
 function DriverCard() {
   const actorRef = useOrderFlowActorRef()
   const driver = useOrderFlowSelector((state) => state.context.driver)
@@ -10,6 +14,7 @@ function DriverCard() {
   const isEnRoute = useOrderFlowSelector((state) => state.matches('enRoute'))
   const isArrived = useOrderFlowSelector((state) => state.matches('arrived'))
   const isInRide = useOrderFlowSelector((state) => state.matches('inRide'))
+  const isDesktop = useIsDesktop()
 
   if (!driver || !(isDriverAssigned || isEnRoute || isArrived || isInRide)) return null
 
@@ -23,7 +28,11 @@ function DriverCard() {
 
   return (
     <div
-      className="absolute inset-x-0 top-0 z-10 m-4 flex flex-col gap-3 rounded-xl border border-border bg-background/95 p-3 shadow-lg backdrop-blur"
+      className={
+        isDesktop
+          ? 'flex flex-col gap-3 p-4'
+          : 'absolute inset-x-0 top-0 z-10 m-4 flex flex-col gap-3 rounded-xl border border-border bg-background/95 p-3 shadow-lg backdrop-blur'
+      }
       data-slot="driver-card"
     >
       <div className="flex items-center gap-3">
