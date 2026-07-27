@@ -3,6 +3,9 @@ import { useGetUserProfileQuery } from '@/entities/user/api'
 import { InitialsAvatar } from '@/shared/ui/InitialsAvatar'
 import { useNavigation } from '@/app/navigationContext'
 
+// Desktop hides this in favor of the avatar in DesktopNavbar (see
+// app/App.tsx) — lg:hidden rather than not rendering it at all, so mobile
+// behavior/tests are untouched if the viewport straddles the breakpoint.
 function ProfileButton() {
   const { navigate } = useNavigation()
   const { data: profile } = useGetUserProfileQuery()
@@ -12,7 +15,7 @@ function ProfileButton() {
       type="button"
       onClick={() => navigate('profile')}
       aria-label="Профиль"
-      className="absolute left-4 top-4 z-10 rounded-full shadow-lg outline-none ring-ring focus-visible:ring-2"
+      className="absolute left-4 top-4 z-10 rounded-full shadow-lg outline-none ring-ring focus-visible:ring-2 lg:hidden"
     >
       {profile ? (
         <InitialsAvatar name={profile.name} className="h-11 w-11 text-base" />

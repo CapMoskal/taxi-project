@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ScreenHeader } from '@/shared/ui/ScreenHeader'
+import { ScreenShell } from '@/shared/ui/ScreenShell'
 import { useNavigation } from '@/app/navigationContext'
 
 const FAQ_ITEMS = [
@@ -26,36 +26,32 @@ function SupportScreen() {
   const [isMessageSent, setIsMessageSent] = useState(false)
 
   return (
-    <div className="flex h-dvh w-full flex-col bg-background">
-      <ScreenHeader title="Поддержка" onBack={() => navigate('profile')} />
-
-      <div className="flex-1 overflow-y-auto p-4">
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            {FAQ_ITEMS.map((item) => (
-              <details
-                key={item.question}
-                className="group rounded-xl border border-border p-3 [&_summary::-webkit-details-marker]:hidden"
-              >
-                <summary className="cursor-pointer list-none text-sm font-medium text-foreground">
-                  {item.question}
-                </summary>
-                <p className="mt-2 text-sm text-muted-foreground">{item.answer}</p>
-              </details>
-            ))}
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setIsMessageSent(true)}
-            disabled={isMessageSent}
-            className="rounded-xl bg-primary py-3 text-sm font-medium text-primary-foreground transition-opacity disabled:opacity-50"
-          >
-            {isMessageSent ? 'Сообщение отправлено' : 'Написать в поддержку'}
-          </button>
+    <ScreenShell title="Поддержка" onBack={() => navigate('profile')}>
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2">
+          {FAQ_ITEMS.map((item) => (
+            <details
+              key={item.question}
+              className="group rounded-xl border border-border p-3 [&_summary::-webkit-details-marker]:hidden"
+            >
+              <summary className="cursor-pointer list-none text-sm font-medium text-foreground">
+                {item.question}
+              </summary>
+              <p className="mt-2 text-sm text-muted-foreground">{item.answer}</p>
+            </details>
+          ))}
         </div>
+
+        <button
+          type="button"
+          onClick={() => setIsMessageSent(true)}
+          disabled={isMessageSent}
+          className="rounded-xl bg-primary py-3 text-sm font-medium text-primary-foreground transition-opacity disabled:opacity-50"
+        >
+          {isMessageSent ? 'Сообщение отправлено' : 'Написать в поддержку'}
+        </button>
       </div>
-    </div>
+    </ScreenShell>
   )
 }
 

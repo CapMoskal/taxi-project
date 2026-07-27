@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { CreditCard, Plus, Wallet } from 'lucide-react'
 import { useAddCardMutation, useGetPaymentMethodsQuery } from '@/entities/payment-method/api'
 import type { PaymentMethod, PaymentMethodBrand } from '@/entities/payment-method/types'
-import { ScreenHeader } from '@/shared/ui/ScreenHeader'
+import { ScreenShell } from '@/shared/ui/ScreenShell'
 import { ListRow } from '@/shared/ui/ListRow'
 import { BottomSheet } from '@/shared/ui/BottomSheet'
 import { useNavigation } from '@/app/navigationContext'
@@ -82,46 +82,42 @@ function PaymentMethodsScreen() {
   const [isAddingCard, setIsAddingCard] = useState(false)
 
   return (
-    <div className="flex h-dvh w-full flex-col bg-background">
-      <ScreenHeader title="Способы оплаты" onBack={() => navigate('profile')} />
+    <ScreenShell title="Способы оплаты" onBack={() => navigate('profile')}>
+      {isLoading && <p className="text-sm text-muted-foreground">Загружаем…</p>}
+      {isError && <p className="text-sm text-destructive">Не удалось загрузить способы оплаты.</p>}
 
-      <div className="relative flex-1 overflow-y-auto p-4">
-        {isLoading && <p className="text-sm text-muted-foreground">Загружаем…</p>}
-        {isError && <p className="text-sm text-destructive">Не удалось загрузить способы оплаты.</p>}
-
-        {methods && (
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col divide-y divide-border rounded-xl border border-border">
-              {methods.map((method) => (
-                <ListRow
-                  key={method.id}
-                  icon={
-                    method.type === 'card' ? (
-                      <CreditCard className="h-4 w-4 text-foreground" />
-                    ) : (
-                      <Wallet className="h-4 w-4 text-foreground" />
-                    )
-                  }
-                  label={paymentMethodLabel(method)}
-                  value={method.isDefault ? 'Основной' : undefined}
-                />
-              ))}
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setIsAddingCard(true)}
-              className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-border p-3 text-sm text-foreground transition-colors hover:bg-muted"
-            >
-              <Plus className="h-4 w-4" />
-              Добавить карту
-            </button>
+      {methods && (
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col divide-y divide-border rounded-xl border border-border">
+            {methods.map((method) => (
+              <ListRow
+                key={method.id}
+                icon={
+                  method.type === 'card' ? (
+                    <CreditCard className="h-4 w-4 text-foreground" />
+                  ) : (
+                    <Wallet className="h-4 w-4 text-foreground" />
+                  )
+                }
+                label={paymentMethodLabel(method)}
+                value={method.isDefault ? 'Основной' : undefined}
+              />
+            ))}
           </div>
-        )}
 
-        {isAddingCard && <AddCardSheet onClose={() => setIsAddingCard(false)} />}
-      </div>
-    </div>
+          <button
+            type="button"
+            onClick={() => setIsAddingCard(true)}
+            className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-border p-3 text-sm text-foreground transition-colors hover:bg-muted"
+          >
+            <Plus className="h-4 w-4" />
+            Добавить карту
+          </button>
+        </div>
+      )}
+
+      {isAddingCard && <AddCardSheet onClose={() => setIsAddingCard(false)} />}
+    </ScreenShell>
   )
 }
 

@@ -59,9 +59,12 @@ function PickupSheet({ mapRef }: PickupSheetProps) {
   return (
     <>
       {/* left-20 clears the profile avatar (ProfileButton, `left-4` + 44px) so
-          the pill never overlaps it, however long the resolved address is. */}
+          the pill never overlaps it, however long the resolved address is.
+          On lg: ProfileButton is hidden (avatar lives in DesktopNavbar
+          instead), so the pill reclaims left-4 and caps its width — full
+          right-4 would otherwise stretch it edge-to-edge on wide viewports. */}
       <div
-        className="absolute left-20 right-4 top-4 z-10 rounded-2xl bg-background px-4 py-3 text-center shadow-lg"
+        className="absolute left-20 right-4 top-4 z-10 rounded-2xl bg-background px-4 py-3 text-center shadow-lg lg:left-4 lg:right-auto lg:w-full lg:max-w-sm"
         data-slot="pickup-pill"
       >
         <p className="text-xs text-muted-foreground">Точка подачи</p>
