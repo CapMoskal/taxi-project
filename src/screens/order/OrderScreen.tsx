@@ -127,7 +127,18 @@ function OrderScreen() {
       <div className="relative h-full flex-1 overflow-hidden" data-slot="order-map-area">
         <MapCanvas
           className="absolute inset-0"
-          center={[DEMO_PICKUP.lng, DEMO_PICKUP.lat]}
+          // Only read at construction time (MapCanvas's mount effect has an
+          // empty dep array) — doesn't track pickup on a live session, only
+          // decides where a (re)constructed map is born. Matters whenever
+          // OrderScreen/MapCanvas remounts with pickup already resolved
+          // (e.g. navigating away to Профиль/История and back — App.tsx's
+          // flat screen switcher unmounts OrderScreen entirely): without
+          // this, the new map would always be born at the Moscow fallback
+          // regardless of the real (already-known) pickup, and nothing
+          // during selectingPickup/selectingDestination re-centers it
+          // afterward (cameraBounds below is null in those phases) — found
+          // via ad-hoc repro with real geolocation, see docs/decisions.md.
+          center={pickup ? [pickup.lng, pickup.lat] : [DEMO_PICKUP.lng, DEMO_PICKUP.lat]}
           zoom={14}
           styleUrl={mapStyleUrl}
           markers={markers}
