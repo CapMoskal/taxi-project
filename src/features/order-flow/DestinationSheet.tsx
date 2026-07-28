@@ -3,18 +3,10 @@ import type { RefObject } from 'react'
 import type maplibregl from 'maplibre-gl'
 import { animate, motion, useMotionValue } from 'motion/react'
 import type { PanInfo } from 'motion/react'
-import { skipToken } from '@reduxjs/toolkit/query/react'
 import { Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { useDebouncedValue } from '@/shared/lib/useDebouncedValue'
-import { useIsDesktop } from '@/shared/lib/useIsDesktop'
-import { useReverseGeocodeQuery, useSearchPlacesQuery } from '@/shared/map/geocodingApi'
-import type { Place } from '@/shared/map/geocodingApi'
-import { useGetRouteQuery } from '@/shared/map/routingApi'
-import { useGetRecentPlacesQuery } from '@/entities/recent-place/api'
-import type { RecentPlace } from '@/entities/recent-place/types'
-import type { LatLng } from '@/shared/geo/types'
 import { useOrderFlowActorRef, useOrderFlowSelector } from './context'
+import { useDestinationSync } from './useDestinationSync'
 import { PlaceRow } from './PlaceRow'
 
 type SheetSnap = 'peek' | 'expanded' | 'retreated'
@@ -29,27 +21,14 @@ interface DestinationSheetProps {
   mapRef: RefObject<maplibregl.Map | null>
 }
 
-// Mounted by OrderScreen in the desktop rail or as a mobile map overlay,
-// never both — see PickupSheet.tsx for the reasoning. The map-drag → address
-// sync logic below is shared by both (2b keeps the A/B selection interaction
-// identical on desktop, see docs/decisions.md); only the sliding-sheet
-// physics (snap/drag/retreat) are mobile-only — desktop is a static rail
-// block, so there's nothing to retreat *from*.
+// Mobile-only map overlay — desktop's equivalent step lives in
+// OrderComposePanel (compose panel, co-visible with class/payment/order),
+// which shares this component's address-sync data logic via
+// useDestinationSync but has no sliding-sheet physics to speak of (it's a
+// static rail block, nothing to retreat from). See docs/decisions.md.
 function DestinationSheet({ mapRef }: DestinationSheetProps) {
   const actorRef = useOrderFlowActorRef()
   const pickup = useOrderFlowSelector((state) => state.context.pickup)
-  const isDesktop = useIsDesktop()
-
-  const [query, setQuery] = useState('')
-  const isInputFocusedRef = useRef(false)
-  const debouncedQuery = useDebouncedValue(query, 300)
-  const [draggedCenter, setDraggedCenter] = useState<LatLng | null>(null)
-  // Whatever `handleConfirm` would read right now (map.getCenter()) — kept in
-  // sync on every settle, not just drag-retreat cycles, so the road route to
-  // it can be prefetched below and be warm in cache by the time the user
-  // actually taps confirm (OrderScreen's own useGetRouteQuery re-subscribes
-  // to the same {from,to} args and hits the cache instead of refetching).
-  const [candidateDestination, setCandidateDestination] = useState<LatLng | null>(null)
 
   const [snap, setSnap] = useState<SheetSnap>('peek')
   const snapRef = useRef<SheetSnap>('peek')
@@ -57,6 +36,26 @@ function DestinationSheet({ mapRef }: DestinationSheetProps) {
   useEffect(() => {
     snapRef.current = snap
   }, [snap])
+
+  const {
+    query,
+    setQuery,
+    isInputFocusedRef,
+    rows,
+    isSearching,
+    showSearch,
+    handlePickRow: syncPickRow,
+    pickupAddress,
+  } = useDestinationSync(mapRef, pickup, {
+    onUserMoveStart: () => {
+      if (snapRef.current === 'retreated') return
+      prevSnapRef.current = snapRef.current
+      setSnap('retreated')
+    },
+    onUserSettle: () => {
+      setSnap(prevSnapRef.current)
+    },
+  })
 
   const containerRef = useRef<HTMLDivElement>(null)
   const [sheetHeight, setSheetHeight] = useState(0)
@@ -84,99 +83,8 @@ function DestinationSheet({ mapRef }: DestinationSheetProps) {
     setSnap(y.get() < peekY / 2 ? 'expanded' : 'peek')
   }
 
-  // Tracks "was the current map move user-driven (drag/zoom), not our own
-  // jumpTo" — independent of `snap` (which is mobile-only visual state) so
-  // the same signal gates the address-sync logic on desktop too, where
-  // there's no retreat animation to piggyback on.
-  const isUserDrivenMoveRef = useRef(false)
-
-  // Sheet retreats while the user drags/zooms the map (mobile only), and
-  // comes back once they settle. Programmatic camera moves (jumpTo on
-  // picking a result) don't have an originalEvent.
-  useEffect(() => {
-    const map = mapRef.current
-    if (!map) return
-    const onUserMoveStart = (e: { originalEvent?: unknown }) => {
-      if (!e.originalEvent) return
-      isUserDrivenMoveRef.current = true
-      if (isDesktop) return
-      if (snapRef.current === 'retreated') return
-      prevSnapRef.current = snapRef.current
-      setSnap('retreated')
-    }
-    // No `originalEvent` gate here: after a fast drag, MapLibre's inertia
-    // deceleration fires the settling `moveend` programmatically (no
-    // originalEvent) — gating on it would strand the sheet in `retreated`
-    // forever on any flick-style swipe. `isUserDrivenMoveRef` alone is enough
-    // to ignore moveend from our own programmatic jumpTo (never set for those).
-    const onMoveEnd = () => {
-      // Unconditional: this is whatever handleConfirm would read right now
-      // (map.getCenter()), kept fresh on every settle — including
-      // programmatic jumpTo from picking a search result — so the route
-      // prefetch below stays warm regardless of how the user got here.
-      const center = map.getCenter()
-      setCandidateDestination({ lat: center.lat, lng: center.lng })
-      if (!isUserDrivenMoveRef.current) return
-      isUserDrivenMoveRef.current = false
-      setDraggedCenter({ lat: center.lat, lng: center.lng })
-      if (!isDesktop) setSnap(prevSnapRef.current)
-    }
-    // Seed the initial candidate immediately — the map may already be sitting
-    // on a valid destination (wherever selectingPickup left it) before any
-    // drag/jumpTo ever fires a moveend.
-    const initialCenter = map.getCenter()
-    setCandidateDestination({ lat: initialCenter.lat, lng: initialCenter.lng })
-    map.on('dragstart', onUserMoveStart)
-    map.on('zoomstart', onUserMoveStart)
-    map.on('moveend', onMoveEnd)
-    return () => {
-      map.off('dragstart', onUserMoveStart)
-      map.off('zoomstart', onUserMoveStart)
-      map.off('moveend', onMoveEnd)
-    }
-  }, [mapRef, isDesktop])
-
-  // Warm the OSRM cache for the road route to whatever's currently centered
-  // — OrderScreen's own useGetRouteQuery re-subscribes to the same {from,to}
-  // args right after CONFIRM_DESTINATION and hits this cache entry instead
-  // of starting the fetch from scratch, so selectingClass doesn't flash a
-  // straight-line fallback while a fresh OSRM request is in flight.
-  useGetRouteQuery(pickup && candidateDestination ? { from: pickup, to: candidateDestination } : skipToken)
-
-  const { data: pickupAddress } = useReverseGeocodeQuery(pickup ?? skipToken)
-
-  // Reflect the map-dragged point as the destination address, but never fight
-  // an in-progress search — only when the input isn't focused.
-  const { data: draggedAddress } = useReverseGeocodeQuery(draggedCenter ?? skipToken)
-  useEffect(() => {
-    if (draggedAddress && !isInputFocusedRef.current) setQuery(draggedAddress)
-  }, [draggedAddress])
-
-  const { data: searchResults, isFetching: isSearching } = useSearchPlacesQuery(
-    debouncedQuery.trim().length >= 2 ? { query: debouncedQuery.trim(), proximity: pickup ?? undefined } : skipToken,
-  )
-  const { data: recentPlaces } = useGetRecentPlacesQuery()
-
-  const showSearch = debouncedQuery.trim().length >= 2
-  const rows: { id: string; name: string; subtitle: string; coords: LatLng; icon: 'recent' | 'place' }[] = showSearch
-    ? (searchResults ?? []).map((place: Place) => ({
-        id: place.id,
-        name: place.name,
-        subtitle: place.address,
-        coords: place.coords,
-        icon: 'place',
-      }))
-    : (recentPlaces ?? []).map((place: RecentPlace) => ({
-        id: place.id,
-        name: place.name,
-        subtitle: place.subtitle,
-        coords: place.coords,
-        icon: 'recent',
-      }))
-
-  const handlePickRow = (row: (typeof rows)[number]) => {
-    setQuery(row.name)
-    mapRef.current?.jumpTo({ center: [row.coords.lng, row.coords.lat], zoom: 15 })
+  const handlePickRow = (row: Parameters<typeof syncPickRow>[0]) => {
+    syncPickRow(row)
     setSnap('peek')
   }
 
@@ -186,66 +94,6 @@ function DestinationSheet({ mapRef }: DestinationSheetProps) {
     const center = map.getCenter()
     actorRef.send({ type: 'SET_DESTINATION', coords: { lat: center.lat, lng: center.lng } })
     actorRef.send({ type: 'CONFIRM_DESTINATION' })
-  }
-
-  const searchBox = (
-    <div className="flex items-center gap-2 rounded-lg border border-border px-3 py-2">
-      <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
-      <input
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        onFocus={() => {
-          isInputFocusedRef.current = true
-          setSnap('expanded')
-        }}
-        onBlur={() => {
-          isInputFocusedRef.current = false
-        }}
-        placeholder="Куда едем?"
-        className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
-        data-slot="destination-input"
-      />
-    </div>
-  )
-
-  const resultsList = (
-    <div className="flex flex-col">
-      {rows.map((row) => (
-        <PlaceRow
-          key={row.id}
-          name={row.name}
-          subtitle={row.subtitle}
-          icon={row.icon}
-          onClick={() => handlePickRow(row)}
-        />
-      ))}
-    </div>
-  )
-
-  if (isDesktop) {
-    return (
-      <div className="flex h-full flex-col gap-3 p-4" data-slot="destination-rail">
-        <div>
-          <p className="mb-2 text-xs text-muted-foreground">Точка подачи · {pickupAddress || '…'}</p>
-          {searchBox}
-          {isSearching && showSearch && <p className="mt-2 text-xs text-muted-foreground">Ищем…</p>}
-          {showSearch && !isSearching && rows.length === 0 && (
-            <p className="mt-2 text-xs text-muted-foreground">Ничего не найдено</p>
-          )}
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          {!showSearch && rows.length > 0 && (
-            <p className="mb-1 px-1 text-xs text-muted-foreground">Недавние адреса</p>
-          )}
-          {resultsList}
-        </div>
-
-        <Button className="w-full shrink-0" onClick={handleConfirm}>
-          Подтвердить точку назначения
-        </Button>
-      </div>
-    )
   }
 
   return (
@@ -267,7 +115,23 @@ function DestinationSheet({ mapRef }: DestinationSheetProps) {
           <p className="mb-2 text-xs text-muted-foreground">
             Точка подачи · {pickupAddress || '…'}
           </p>
-          {searchBox}
+          <div className="flex items-center gap-2 rounded-lg border border-border px-3 py-2">
+            <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onFocus={() => {
+                isInputFocusedRef.current = true
+                setSnap('expanded')
+              }}
+              onBlur={() => {
+                isInputFocusedRef.current = false
+              }}
+              placeholder="Куда едем?"
+              className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+              data-slot="destination-input"
+            />
+          </div>
           {isSearching && showSearch && <p className="mt-2 text-xs text-muted-foreground">Ищем…</p>}
           {showSearch && !isSearching && rows.length === 0 && (
             <p className="mt-2 text-xs text-muted-foreground">Ничего не найдено</p>
@@ -278,7 +142,17 @@ function DestinationSheet({ mapRef }: DestinationSheetProps) {
           {!showSearch && rows.length > 0 && (
             <p className="mb-1 px-1 text-xs text-muted-foreground">Недавние адреса</p>
           )}
-          {resultsList}
+          <div className="flex flex-col">
+            {rows.map((row) => (
+              <PlaceRow
+                key={row.id}
+                name={row.name}
+                subtitle={row.subtitle}
+                icon={row.icon}
+                onClick={() => handlePickRow(row)}
+              />
+            ))}
+          </div>
         </div>
       </motion.div>
 

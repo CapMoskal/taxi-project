@@ -81,22 +81,53 @@ src/
   удалён, чтобы мобильное поведение было буквально нетронутым.
 - **Экран заказа (`OrderScreen`) — свой каркас, не `ScreenShell`**: карта
   на весь экран, это другая композиция. На десктопе — двухколоночный
-  shell: `<aside>` рельс 380px (`lg:flex`, `hidden` на мобильном) + карта
-  `flex-1`. Флоу остаётся ПОШАГОВЫМ на обоих брейкпоинтах (композиция
-  «всё сразу» — 2c, ещё впереди) — единственное, что меняется на
-  десктопе — КУДА монтируется UI текущей фазы: в рельс вместо оверлея
-  над картой. `useIsDesktop()` (`shared/lib/`, реактивный `matchMedia`)
-  решает это на уровне `OrderScreen`, гейтуя `isDesktop &&`/`!isDesktop &&`
-  так, что каждый фаза-компонент существует РОВНО в одном месте —
-  задвоить его означало бы задвоить и побочные эффекты (map-листенеры,
-  `actorRef.send`). `shared/ui/OrderSurface` — sheet↔panel для «простых»
-  фаз (мобильный: `BottomSheet` как раньше; десктоп: плоский блок в
-  рельсе); `PickupSheet`/`DestinationSheet`/`DriverCard` — bespoke-форк
-  вручную (плавающая pill/карточка на мобильном против первой строки
-  рельс-блока на десктопе), см. `decisions.md` (2026-07-27) для
-  подробностей — особенно `DestinationSheet`, где визуальная физика
-  шторки (мобильная) отделена от логики синка адреса при движении карты
-  (общая для обеих веток).
+  shell: `<aside>` рельс 380px (`lg:flex`, `hidden` на мобильном, визуально
+  слева через `order-first` — физически в DOM он стоит ПОСЛЕ карты, см.
+  ниже) + карта `flex-1`. Мобилка остаётся ПОШАГОВОЙ (`PickupSheet` →
+  `DestinationSheet` → `ClassPickerSheet` как оверлеи над картой); десктоп с
+  2c показывает co-visible панель «всё сразу» (`OrderComposePanel`) —
+  адреса + классы + оплата + «Заказать» одновременно, как только есть
+  маршрут. `useIsDesktop()` (`shared/lib/`, реактивный `matchMedia`) решает
+  на уровне `OrderScreen`, гейтуя `isDesktop &&`/`!isDesktop &&` так, что
+  каждый компонент существует РОВНО в одном месте — задвоить его означало
+  бы задвоить и побочные эффекты (map-листенеры, `actorRef.send`).
+  Дополнительно `OrderScreen` шлёт `SET_LAYOUT` в машину эффектом на
+  `[isDesktop]` — сама машина решает, когда авто-пролетать шаги на
+  десктопе (см. ниже).
+  - **Машина ведёт композицию, не компоненты.** `OrderFlowContext.layout`
+    (`'mobile' | 'desktop'`) + eventless `always`-переходы в
+    `selectingPickup`/`selectingDestination`, гейтованные
+    `isDesktopLayout` — на десктопе машина сама пролетает эти состояния по
+    мере заполнения контекста (геолокация → A, выбор Б → сразу
+    `selectingClass`, якорь compose-панели). Мобилка не тронута (guard
+    ложный). Правило проекта №4 (XState — источник истины для флоу) в
+    действии: авто-переходы в машине, а не в `useEffect` компонента.
+  - **`OrderComposePanel`** (`features/order-flow/`) — единственный
+    desktop-компонент, монтируемый для `selectingPickup`/
+    `selectingDestination`/`selectingClass`. Адреса — гибрид: текстовые
+    поля (клик → инлайн-поиск) И перетаскивание карты для точки Б (общий
+    хук `useDestinationSync`, см. ниже). Дальше — `ClassGrid` + `PaymentRow`
+    + «Заказать» (`CONFIRM_CLASS`), co-visible, как только есть `destination`.
+  - **`shared/ui/OrderSurface`** — sheet↔panel для «простых» фаз поездки
+    (мобильный: `BottomSheet`; десктоп: плоский блок в рельсе) — используют
+    `DriverSearchPanel`/`RideCompletionSheet`/`RideDoneCard`/мобильный
+    `ClassPickerSheet`.
+  - **`useDestinationSync`** (`features/order-flow/`) — общая data-логика
+    синка точки Б (поиск, reverse-geocode при драге карты, OSRM-prefetch),
+    вынесенная из `DestinationSheet`. Использует и `DestinationSheet`
+    (мобилка), и `OrderComposePanel` (десктоп) — колбэки
+    `onUserMoveStart`/`onUserSettle`/`onPick` определяют, что конкретно
+    происходит на каждой ветке (мобилка: retreat-анимация шторки, явное
+    подтверждение кнопкой; десктоп: сразу `SET_DESTINATION`, нет отдельного
+    шага подтверждения). **Визуальная физика шторки (snap/drag/retreat)
+    осталась только в `DestinationSheet`** — десктопу ретритить нечего.
+  - **`PickupSheet`/`DestinationSheet`/`DriverCard`** — теперь чисто
+    мобильные bespoke-компоненты (плавающая pill/шторка/карточка); их
+    прежние desktop-ветки убраны вместе с `OrderComposePanel`.
+  - Подробности (включая два бага, найденных при 2c — порядок mount-
+    эффектов относительно `mapRef.current`, и дропдаун результатов поиска,
+    не закрывавшийся после выбора) — `decisions.md` (2026-07-27 — 2a/2b,
+    2026-07-28 — 2c).
 
 ## `features/order-flow` — детально
 
