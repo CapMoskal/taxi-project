@@ -2,9 +2,8 @@ import { skipToken } from '@reduxjs/toolkit/query/react'
 import { useGetRideClassQuotesQuery } from '@/entities/ride-class/api'
 import { Button } from '@/components/ui/button'
 import { OrderSurface } from '@/shared/ui/OrderSurface'
-import { formatCurrencyRUB } from '@/shared/lib/formatCurrency'
-import { cn } from '@/lib/utils'
 import { useOrderFlowActorRef, useOrderFlowSelector } from './context'
+import { ClassGrid } from './ClassGrid'
 
 function ClassPickerSheet() {
   const actorRef = useOrderFlowActorRef()
@@ -25,23 +24,11 @@ function ClassPickerSheet() {
       {isLoading && <p className="text-sm text-muted-foreground">Считаем цену…</p>}
       {isError && <p className="text-sm text-destructive">Не удалось загрузить классы. Попробуйте ещё раз.</p>}
 
-      <div className="flex flex-col gap-2">
-        {quotes?.map((quote) => (
-          <button
-            key={quote.classId}
-            type="button"
-            aria-pressed={selectedClassId === quote.classId}
-            onClick={() => actorRef.send({ type: 'SELECT_CLASS', classId: quote.classId })}
-            className={cn(
-              'flex items-center justify-between rounded-lg border border-border px-3 py-2 text-left transition-colors',
-              selectedClassId === quote.classId ? 'border-primary bg-primary/10' : 'hover:bg-muted',
-            )}
-          >
-            <span className="text-sm font-medium text-foreground">{quote.label}</span>
-            <span className="text-sm text-muted-foreground">{formatCurrencyRUB(quote.price)}</span>
-          </button>
-        ))}
-      </div>
+      <ClassGrid
+        quotes={quotes}
+        selectedClassId={selectedClassId}
+        onSelect={(classId) => actorRef.send({ type: 'SELECT_CLASS', classId })}
+      />
 
       <Button
         className="mt-4 w-full"

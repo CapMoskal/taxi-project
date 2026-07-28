@@ -10,11 +10,12 @@ import { useMapCameraFollow } from '@/shared/map/useMapCameraFollow'
 import type { CameraPadding } from '@/shared/map/useMapCameraFollow'
 import { useIsDesktop } from '@/shared/lib/useIsDesktop'
 import { useTheme } from '@/app/themeContext'
-import { useOrderFlowSelector } from '@/features/order-flow/context'
+import { useOrderFlowActorRef, useOrderFlowSelector } from '@/features/order-flow/context'
 import { PickupResolver } from '@/features/order-flow/PickupResolver'
 import { PickupSheet } from '@/features/order-flow/PickupSheet'
 import { DestinationSheet } from '@/features/order-flow/DestinationSheet'
 import { ClassPickerSheet } from '@/features/order-flow/ClassPickerSheet'
+import { OrderComposePanel } from '@/features/order-flow/OrderComposePanel'
 import { DriverSearchPanel } from '@/features/order-flow/DriverSearchPanel'
 import { DriverCard } from '@/features/order-flow/DriverCard'
 import { RideCompletionSheet } from '@/features/order-flow/RideCompletionSheet'
@@ -33,6 +34,7 @@ const DESKTOP_PADDING: CameraPadding = { top: 40, bottom: 40, left: 40, right: 4
 
 function OrderScreen() {
   const mapRef = useRef<maplibregl.Map | null>(null)
+  const actorRef = useOrderFlowActorRef()
   const snapshot = useOrderFlowSelector((state) => state)
   const { position: driverPosition } = useRideAutomation()
   const { resolvedTheme } = useTheme()
@@ -41,7 +43,8 @@ function OrderScreen() {
 
   const isPickupPhase = snapshot.matches('selectingPickup')
   const isDestinationPhase = snapshot.matches('selectingDestination')
-  const isBottomSheetOverview = snapshot.matches('selectingClass') || snapshot.matches('searchingDriver')
+  const isClassPhase = snapshot.matches('selectingClass')
+  const isBottomSheetOverview = isClassPhase || snapshot.matches('searchingDriver')
   const isDriverCardOverview = snapshot.matches('driverAssigned') || snapshot.matches('arrived')
   const isEnRoute = snapshot.matches('enRoute')
   const isInRide = snapshot.matches('inRide')
@@ -54,6 +57,14 @@ function OrderScreen() {
   useEffect(() => {
     mapRef.current?.resize()
   }, [isDesktop])
+
+  // Machine-driven layout: desktop auto-fast-forwards selectingPickup →
+  // selectingDestination → selectingClass as pickup/destination fill in
+  // (machine.ts's `always` transitions), so the panel composes instead of
+  // stepping through sheets — mobile is untouched (guard stays false there).
+  useEffect(() => {
+    actorRef.send({ type: 'SET_LAYOUT', layout: isDesktop ? 'desktop' : 'mobile' })
+  }, [isDesktop, actorRef])
 
   const markers: MapMarker[] = []
   // "You are here" (real GPS) — visible from the very first screen, as soon as it resolves.
@@ -99,29 +110,15 @@ function OrderScreen() {
 
   return (
     <div className="relative flex h-full w-full overflow-hidden">
-      {/* Desktop rail — hosts exactly one phase's UI at a time, same guards as
-          the mobile overlay below. `isDesktop &&` (not just the `hidden lg:flex`
-          on the element) keeps this from *mounting* a second live instance of
-          whichever phase component is already mounted in the mobile overlay —
-          each has side effects (map listeners, actorRef.send) that must only
-          run once. */}
-      <aside
-        className="hidden lg:flex lg:w-[380px] lg:shrink-0 lg:flex-col lg:overflow-y-auto lg:border-r lg:border-border"
-        data-slot="order-rail"
-      >
-        {isDesktop && (
-          <>
-            {isPickupPhase && <PickupSheet mapRef={mapRef} />}
-            {isDestinationPhase && <DestinationSheet mapRef={mapRef} />}
-            {snapshot.matches('selectingClass') && <ClassPickerSheet />}
-            {snapshot.matches('searchingDriver') && <DriverSearchPanel />}
-            <DriverCard />
-            {snapshot.matches('completed') && <RideCompletionSheet />}
-            {snapshot.matches('done') && <RideDoneCard />}
-          </>
-        )}
-      </aside>
-
+      {/* Physically before the rail in the DOM (order-first below only
+          reorders it *visually*) — React fires mount effects in render/DOM
+          order, and MapCanvas's own mount effect is what synchronously sets
+          `mapRef.current` (see MapCanvas.tsx, before onMapLoad fires). If the
+          rail rendered first, OrderComposePanel's map-listener effect
+          (useDestinationSync, needs live dragstart/moveend for the "drag map
+          to move B" hybrid interaction) would run against a still-null
+          mapRef.current and never attach — found via reasoning through
+          effect ordering while wiring 2c, not by a failing test. */}
       <div className="relative h-full flex-1 overflow-hidden" data-slot="order-map-area">
         <MapCanvas
           className="absolute inset-0"
@@ -161,6 +158,28 @@ function OrderScreen() {
           </>
         )}
       </div>
+
+      {/* `order-first` reorders this to the left visually — see the comment
+          on the map-area div above for why this must come after it in the
+          DOM/render order. Same guards as the mobile overlay above:
+          `isDesktop &&` (not just `hidden lg:flex`) keeps this from
+          *mounting* a second live instance of whichever phase component is
+          already mounted in the mobile overlay — each has side effects (map
+          listeners, actorRef.send) that must only run once. */}
+      <aside
+        className="order-first hidden lg:flex lg:w-[380px] lg:shrink-0 lg:flex-col lg:overflow-y-auto lg:border-r lg:border-border"
+        data-slot="order-rail"
+      >
+        {isDesktop && (
+          <>
+            {(isPickupPhase || isDestinationPhase || isClassPhase) && <OrderComposePanel mapRef={mapRef} />}
+            {snapshot.matches('searchingDriver') && <DriverSearchPanel />}
+            <DriverCard />
+            {snapshot.matches('completed') && <RideCompletionSheet />}
+            {snapshot.matches('done') && <RideDoneCard />}
+          </>
+        )}
+      </aside>
     </div>
   )
 }

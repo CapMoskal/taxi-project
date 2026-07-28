@@ -4,7 +4,6 @@ import type maplibregl from 'maplibre-gl'
 import { skipToken } from '@reduxjs/toolkit/query/react'
 import { ChevronRight, Search } from 'lucide-react'
 import { BottomSheet } from '@/shared/ui/BottomSheet'
-import { useIsDesktop } from '@/shared/lib/useIsDesktop'
 import { useReverseGeocodeQuery } from '@/shared/map/geocodingApi'
 import { useGetRecentPlacesQuery } from '@/entities/recent-place/api'
 import type { RecentPlace } from '@/entities/recent-place/types'
@@ -19,17 +18,15 @@ interface PickupSheetProps {
 // map moves it. No confirm step for A itself; tapping "Куда едем?" (or a
 // recent address) advances straight to selectingDestination (point B).
 //
-// Mounted by OrderScreen in one of two spots depending on the breakpoint —
-// inside the desktop rail, or as a mobile overlay over the map — never both
-// at once. `useIsDesktop()` here only controls which markup/chrome this
-// component itself renders, not whether it's mounted (OrderScreen decides
-// that), so the two always agree.
+// Mobile-only map overlay — desktop skips this step entirely (the machine's
+// `selectingPickup` always-transitions straight to `selectingDestination`
+// once pickup is seeded, see machine.ts) and shows A as an editable field
+// inside OrderComposePanel instead.
 function PickupSheet({ mapRef }: PickupSheetProps) {
   const actorRef = useOrderFlowActorRef()
   const pickup = useOrderFlowSelector((state) => state.context.pickup)
   const { data: pickupAddress } = useReverseGeocodeQuery(pickup ?? skipToken)
   const { data: recentPlaces } = useGetRecentPlacesQuery()
-  const isDesktop = useIsDesktop()
 
   // Point A follows the map center as the user drags — same "center pin is
   // the point" interaction DestinationSheet uses for B. PickupResolver's
@@ -96,23 +93,6 @@ function PickupSheet({ mapRef }: PickupSheetProps) {
       )}
     </>
   )
-
-  if (isDesktop) {
-    // No floating pill on desktop — the resolved address is just the first
-    // row of the rail block instead (rail already gives this its own space,
-    // unlike the mobile map overlay where the pill and sheet compete for room).
-    return (
-      <div className="flex h-full flex-col gap-3 p-4" data-slot="pickup-rail">
-        <div>
-          <p className="text-xs text-muted-foreground">Точка подачи</p>
-          <p className="truncate text-sm font-medium text-foreground">
-            {pickup ? pickupAddress || '…' : 'Определяем местоположение…'}
-          </p>
-        </div>
-        {listContent}
-      </div>
-    )
-  }
 
   return (
     <>

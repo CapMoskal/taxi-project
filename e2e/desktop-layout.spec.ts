@@ -31,22 +31,25 @@ test.describe('desktop layout (lg breakpoint)', () => {
 
   test('floating ProfileButton on the order screen is hidden on desktop', async ({ page }) => {
     await page.goto('/')
-    await expect(page.getByLabel('Профиль').first()).toBeVisible() // navbar avatar
-    // The mobile floating avatar button (absolute top-left on the map) must
-    // not also be visible — DesktopNavbar's avatar replaces it on lg:.
-    const floatingButtons = page.locator('button[aria-label="Профиль"]')
-    await expect(floatingButtons).toHaveCount(2) // navbar + OrderScreen's (hidden via lg:hidden)
-    await expect(floatingButtons.nth(1)).toBeHidden()
+    // Exactly one VISIBLE "Профиль" button at a time — the navbar's own.
+    // The mobile floating avatar (absolute top-left on the map,
+    // ProfileButton.tsx) always carries `lg:hidden`, but since 2c it may
+    // also not be mounted at all on desktop — the machine's `always`
+    // transitions fast-forward past the pickup phase (which is what gates
+    // its mount) almost immediately once geolocation resolves (see
+    // machine.ts). Either way — hidden-but-mounted or unmounted — it must
+    // never be simultaneously visible with the navbar's.
+    await expect(page.locator('button[aria-label="Профиль"]:visible')).toHaveCount(1)
   })
 
-  test('order flow renders phase UI in the rail, not as a map overlay', async ({ page }) => {
+  test('order flow composes addresses + classes + payment + order co-visible in the rail (2c)', async ({ page }) => {
     await page.goto('/')
 
-    // No floating pickup-pill on desktop — PickupSheet renders a plain rail
-    // block instead (see PickupSheet.tsx).
+    // No floating pickup-pill / mobile sheets on desktop — the compose panel
+    // renders a single co-visible block instead (see OrderComposePanel.tsx).
     await expect(page.locator('[data-slot="pickup-pill"]')).toHaveCount(0)
     const rail = page.locator('[data-slot="order-rail"]')
-    await expect(rail.locator('[data-slot="pickup-rail"]')).toBeVisible()
+    await expect(rail.locator('[data-slot="order-compose"]')).toBeVisible()
 
     // Rail and map area are real flex siblings, not stacked/overlaid — the
     // map area must start where the rail ends, not underneath it.
@@ -54,15 +57,25 @@ test.describe('desktop layout (lg breakpoint)', () => {
     const mapAreaBox = (await page.locator('[data-slot="order-map-area"]').boundingBox())!
     expect(mapAreaBox.x).toBeGreaterThanOrEqual(railBox.x + railBox.width)
 
-    await rail.locator('[data-slot="pickup-where-to"]').click()
-    await expect(rail.locator('[data-slot="destination-rail"]')).toBeVisible()
+    // Desktop auto-fast-forwards past the standalone pickup step (machine.ts
+    // `always` transitions) — "Откуда" is already an editable row with the
+    // resolved address, not a separate confirm step.
+    await expect(rail.locator('[data-slot="compose-from"]')).toBeVisible()
 
-    await rail.getByRole('button', { name: 'Подтвердить точку назначения' }).click()
-    await expect(rail.getByRole('heading', { name: 'Выберите класс' })).toBeVisible()
+    // Type a destination and pick a search result — this alone should set
+    // B and fall through to the compose-anchor state (no confirm button).
+    await rail.locator('[data-slot="compose-to"]').fill('Красная площадь')
+    const results = rail.locator('[data-slot="compose-to-results"]')
+    await results.getByText('Красная площадь', { exact: false }).first().click()
 
-    // Road-following route still renders on the map behind the rail (2b keeps
-    // the A/B selection interaction and routing untouched, only relocates
-    // the phase chrome) — same regression check as pickup-destination.spec.ts.
+    // Classes, payment, and "Заказать" all co-visible once B is set.
+    await expect(rail.locator('[data-slot="compose-order"]')).toBeVisible()
+    await expect(rail.locator('[data-slot="compose-payment"]')).toBeVisible()
+    await expect(rail.locator('button[aria-pressed="true"]')).toBeVisible()
+
+    // Road-following route still renders on the map behind the rail (2b/2c
+    // keep the underlying routing untouched, only relocate the phase chrome)
+    // — same regression check as pickup-destination.spec.ts.
     const coordsLength = await page.evaluate(() => {
       const map = (window as unknown as { __map?: import('maplibre-gl').Map }).__map
       const src = map?.getSource('route-line') as unknown as
@@ -72,6 +85,12 @@ test.describe('desktop layout (lg breakpoint)', () => {
     })
     expect(coordsLength).not.toBeNull()
     expect(coordsLength!).toBeGreaterThan(2)
+
+    // "Заказать" is actionable — a class is pre-selected as soon as quotes
+    // load (Yandex-style default), and clicking it advances the machine.
+    await expect(rail.locator('[data-slot="compose-order"]')).toBeEnabled()
+    await rail.locator('[data-slot="compose-order"]').click()
+    await expect(rail.getByText('Ищем водителя рядом…')).toBeVisible()
   })
 })
 

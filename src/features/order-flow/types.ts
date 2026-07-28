@@ -24,6 +24,8 @@ export interface RatingInfo {
   comment?: string
 }
 
+export type OrderFlowLayout = 'mobile' | 'desktop'
+
 export interface OrderFlowContext {
   userLocation: GeoCoords | null
   pickup: GeoCoords | null
@@ -34,9 +36,11 @@ export interface OrderFlowContext {
   fare: FareInfo | null
   payment: PaymentInfo | null
   rating: RatingInfo | null
+  layout: OrderFlowLayout
 }
 
 export type OrderFlowEvent =
+  | { type: 'SET_LAYOUT'; layout: OrderFlowLayout }
   | { type: 'SET_USER_LOCATION'; coords: GeoCoords }
   | { type: 'SET_PICKUP'; coords: GeoCoords }
   | { type: 'CONFIRM_PICKUP' }
