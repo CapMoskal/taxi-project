@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { skipToken } from '@reduxjs/toolkit/query/react'
 import { EMPTY_POLYLINE, useAnimatedPosition } from '@/shared/map/useAnimatedPosition'
 import { roadOrStraight, useGetRouteQuery } from '@/shared/map/routingApi'
+import { remainingPolyline } from '@/shared/geo/polyline'
 import { useOrderFlowActorRef, useOrderFlowSelector } from './context'
 import { getDriverStartPoint, LEG_DURATION_MS } from './demoRoute'
 import type { GeoCoords } from './types'
@@ -11,6 +12,10 @@ const DRIVER_ASSIGNED_DELAY_MS = 2000
 
 export interface RideAutomation {
   position: GeoCoords | null
+  // The A→B route line trimmed to "what's still ahead of the taxi" — only
+  // meaningful during `inRide` (the taxi-erases-the-line effect); null
+  // otherwise, so OrderScreen falls back to the full A→B line.
+  remainingRouteLine: GeoCoords[] | null
 }
 
 export function useRideAutomation(): RideAutomation {
@@ -56,7 +61,7 @@ export function useRideAutomation(): RideAutomation {
     else if (isInRide) actorRef.send({ type: 'RIDE_COMPLETED' })
   }
 
-  const position = useAnimatedPosition(polyline, {
+  const { position, progress } = useAnimatedPosition(polyline, {
     durationMs: LEG_DURATION_MS,
     playing: isEnRoute || isInRide,
     onComplete: handleLegComplete,
@@ -72,5 +77,11 @@ export function useRideAutomation(): RideAutomation {
     actorRef.send({ type: 'DRIVER_LOCATION_UPDATE', coords: position })
   }, [position, actorRef])
 
-  return { position }
+  // `inRidePolyline` is the same A→B geometry OrderScreen draws as the base
+  // route line (same useGetRouteQuery args → RTK Query cache dedup) — trimming
+  // it here, with the same `progress` that positioned the marker, guarantees
+  // the visible line's head always meets the marker exactly.
+  const remainingRouteLine = isInRide ? remainingPolyline(inRidePolyline, progress) : null
+
+  return { position, remainingRouteLine }
 }

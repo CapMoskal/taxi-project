@@ -36,7 +36,7 @@ function OrderScreen() {
   const mapRef = useRef<maplibregl.Map | null>(null)
   const actorRef = useOrderFlowActorRef()
   const snapshot = useOrderFlowSelector((state) => state)
-  const { position: driverPosition } = useRideAutomation()
+  const { position: driverPosition, remainingRouteLine } = useRideAutomation()
   const { resolvedTheme } = useTheme()
   const mapStyleUrl = resolvedTheme === 'dark' ? MAPTILER_STYLE_URL_DARK : MAPTILER_STYLE_URL
   const isDesktop = useIsDesktop()
@@ -85,7 +85,12 @@ function OrderScreen() {
   const { pickup, destination } = snapshot.context
   // Deduped with useRideAutomation's inRide fetch (same args → one OSRM request).
   const { data: routeData } = useGetRouteQuery(pickup && destination ? { from: pickup, to: destination } : skipToken)
-  const routeLine = pickup && destination ? roadOrStraight(routeData, pickup, destination) : null
+  const fullRouteLine = pickup && destination ? roadOrStraight(routeData, pickup, destination) : null
+  // During inRide, the line "erases" behind the taxi — trimmed to exactly
+  // what useRideAutomation's marker hasn't reached yet (same progress, same
+  // geometry, see useRideAutomation.ts) — every other phase shows the full
+  // A→B route, unchanged.
+  const routeLine = isInRide && remainingRouteLine && remainingRouteLine.length >= 2 ? remainingRouteLine : fullRouteLine
 
   // Camera framing by phase: [taxi, next point] while driving, [A, B] while
   // picking a class / waiting for the driver — no camera control elsewhere
