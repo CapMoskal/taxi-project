@@ -9,6 +9,7 @@ export type Screen =
   | 'settings'
   | 'info'
   | 'support'
+  | 'passengers'
 
 export interface NavigationContextValue {
   screen: Screen

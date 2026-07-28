@@ -1,17 +1,24 @@
 import { User } from 'lucide-react'
 import { useGetUserProfileQuery } from '@/entities/user/api'
 import { InitialsAvatar } from '@/shared/ui/InitialsAvatar'
-import { useNavigation } from '@/app/navigationContext'
+import { useNavigation, type Screen } from '@/app/navigationContext'
+import { cn } from '@/lib/utils'
 
-// Text-only placeholders matching the Yandex reference's menu row (see
-// docs/roadmap.md, 2026-07-27 screenshot) — corp-site chrome, not features of
-// this app, so intentionally inert (no navigate target).
-const MENU_ITEMS = ['Пассажирам', 'Водителям', 'Бизнесу', 'Помощь']
+// Matches the Yandex reference's menu row (see docs/roadmap.md, 2026-07-27
+// screenshot) — corp-site chrome, not all of it maps to a feature of this
+// app yet. Items without a `screen` stay inert (no navigate target) until
+// their own feature lands (Пассажирам first, 2026-07-28 — see decisions.md).
+const MENU_ITEMS: { label: string; screen?: Screen }[] = [
+  { label: 'Пассажирам', screen: 'passengers' },
+  { label: 'Водителям' },
+  { label: 'Бизнесу' },
+  { label: 'Помощь' },
+]
 
 // Desktop-only chrome (hidden below `lg`) — the mobile flow keeps its
 // floating ProfileButton on the order screen instead, see OrderScreen.tsx.
 function DesktopNavbar() {
-  const { navigate } = useNavigation()
+  const { screen, navigate } = useNavigation()
   const { data: profile } = useGetUserProfileQuery()
 
   return (
@@ -22,11 +29,25 @@ function DesktopNavbar() {
       <span className="text-lg font-semibold text-foreground">Такси</span>
 
       <nav className="flex flex-1 items-center justify-end gap-6">
-        {MENU_ITEMS.map((item) => (
-          <span key={item} className="text-sm text-muted-foreground transition-colors hover:text-foreground">
-            {item}
-          </span>
-        ))}
+        {MENU_ITEMS.map((item) =>
+          item.screen ? (
+            <button
+              key={item.label}
+              type="button"
+              onClick={() => navigate(item.screen!)}
+              className={cn(
+                'rounded-md text-sm outline-none ring-ring transition-colors hover:text-foreground focus-visible:ring-2',
+                screen === item.screen ? 'text-foreground' : 'text-muted-foreground',
+              )}
+            >
+              {item.label}
+            </button>
+          ) : (
+            <span key={item.label} className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+              {item.label}
+            </span>
+          ),
+        )}
       </nav>
 
       <button

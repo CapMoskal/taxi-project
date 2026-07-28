@@ -1,4 +1,4 @@
-import { Clock, CreditCard, Headphones, Info, MapPin, Settings, Star, Wallet } from 'lucide-react'
+import { Clock, CreditCard, Headphones, Info, MapPin, Settings, ShieldCheck, Star, Wallet } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useGetUserProfileQuery } from '@/entities/user/api'
 import { useGetPaymentMethodsQuery } from '@/entities/payment-method/api'
@@ -87,6 +87,11 @@ function ProfileScreen() {
               icon={<Info className="h-4 w-4 text-foreground" />}
               label="Информация"
               onClick={() => navigate('info')}
+            />
+            <ListRow
+              icon={<ShieldCheck className="h-4 w-4 text-foreground" />}
+              label="Пассажирам"
+              onClick={() => navigate('passengers')}
             />
           </div>
         </div>
