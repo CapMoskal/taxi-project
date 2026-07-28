@@ -29,24 +29,37 @@ function PickupSheet({ mapRef }: PickupSheetProps) {
   const { data: recentPlaces } = useGetRecentPlacesQuery()
 
   // Point A follows the map center as the user drags — same "center pin is
-  // the point" interaction DestinationSheet uses for B. PickupResolver's
-  // initial jumpTo is harmless here (lands on the same coords it just set as
-  // pickup, so re-sending them is a no-op) — but handlePickRecent's jumpTo
-  // (navigating to a recent address's location, which becomes B, not A) is
-  // not: without the guard it would overwrite pickup with that same point,
-  // making pickup === destination. `isLeavingRef` suppresses SET_PICKUP for
-  // that one jumpTo since we're unmounting this screen anyway.
-  const isLeavingRef = useRef(false)
+  // the point" interaction DestinationSheet uses for B. Gated on a real
+  // `dragstart` (not just any `moveend`): `moveend` also fires for
+  // programmatic camera moves — PickupResolver's initial jumpTo,
+  // handlePickRecent's jumpTo below, and even the map's own first "settle"
+  // right after construction (at the hardcoded DEMO_PICKUP/Moscow center,
+  // see MapCanvas.tsx) — which fires within ~20ms of mount, before real
+  // (async) geolocation has a chance to resolve. Without this gate that
+  // first settle would win the race and permanently lock pickup to Moscow
+  // (found via ad-hoc repro with real geolocation set to Rostov, see
+  // docs/decisions.md). `dragstart` only fires on a genuine user pan —
+  // confirmed empirically it does NOT fire for jumpTo or for wheel-zoom
+  // (zoom's moveend/movestart carry no originalEvent either, so gating on
+  // originalEvent instead would have silently dropped zoom-driven updates,
+  // which the old code supported).
+  const userDraggedRef = useRef(false)
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
+    const onDragStart = () => {
+      userDraggedRef.current = true
+    }
     const onMoveEnd = () => {
-      if (isLeavingRef.current) return
+      if (!userDraggedRef.current) return
+      userDraggedRef.current = false
       const center = map.getCenter()
       actorRef.send({ type: 'SET_PICKUP', coords: { lat: center.lat, lng: center.lng } })
     }
+    map.on('dragstart', onDragStart)
     map.on('moveend', onMoveEnd)
     return () => {
+      map.off('dragstart', onDragStart)
       map.off('moveend', onMoveEnd)
     }
   }, [mapRef, actorRef])
@@ -56,7 +69,6 @@ function PickupSheet({ mapRef }: PickupSheetProps) {
   }
 
   const handlePickRecent = (place: RecentPlace) => {
-    isLeavingRef.current = true
     mapRef.current?.jumpTo({ center: [place.coords.lng, place.coords.lat], zoom: 15 })
     actorRef.send({ type: 'CONFIRM_PICKUP' })
   }
