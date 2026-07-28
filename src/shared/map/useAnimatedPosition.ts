@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { haversineDistanceMeters } from '@/shared/geo/distance'
+import { positionAlongPolyline } from '@/shared/geo/polyline'
 import type { LatLng } from '@/shared/geo/types'
 
 export const EMPTY_POLYLINE: LatLng[] = []
@@ -10,27 +10,9 @@ export interface UseAnimatedPositionOptions {
   onComplete?: () => void
 }
 
-function interpolate(a: LatLng, b: LatLng, t: number): LatLng {
-  return { lat: a.lat + (b.lat - a.lat) * t, lng: a.lng + (b.lng - a.lng) * t }
-}
-
-function positionAlongPolyline(polyline: LatLng[], progress: number): LatLng {
-  const segmentLengths = polyline.slice(1).map((point, i) => haversineDistanceMeters(polyline[i], point))
-  const totalLength = segmentLengths.reduce((sum, len) => sum + len, 0)
-  if (totalLength === 0) return polyline[0]
-
-  const targetDistance = progress * totalLength
-  let accumulated = 0
-  for (let i = 0; i < segmentLengths.length; i++) {
-    const segmentLength = segmentLengths[i]
-    const isLastSegment = i === segmentLengths.length - 1
-    if (accumulated + segmentLength >= targetDistance || isLastSegment) {
-      const segmentT = segmentLength === 0 ? 0 : (targetDistance - accumulated) / segmentLength
-      return interpolate(polyline[i], polyline[i + 1], Math.min(1, segmentT))
-    }
-    accumulated += segmentLength
-  }
-  return polyline[polyline.length - 1]
+export interface AnimatedPosition {
+  position: LatLng | null
+  progress: number
 }
 
 /**
@@ -41,8 +23,9 @@ function positionAlongPolyline(polyline: LatLng[], progress: number): LatLng {
 export function useAnimatedPosition(
   polyline: LatLng[],
   { durationMs, playing, onComplete }: UseAnimatedPositionOptions,
-): LatLng | null {
+): AnimatedPosition {
   const [position, setPosition] = useState<LatLng | null>(null)
+  const [progress, setProgress] = useState(0)
   const onCompleteRef = useRef(onComplete)
 
   useEffect(() => {
@@ -52,6 +35,7 @@ export function useAnimatedPosition(
   useEffect(() => {
     if (!playing || polyline.length < 2) {
       setPosition(null)
+      setProgress(0)
       return
     }
 
@@ -61,6 +45,7 @@ export function useAnimatedPosition(
     const tick = (now: number) => {
       const t = Math.min(1, (now - startTime) / durationMs)
       setPosition(positionAlongPolyline(polyline, t))
+      setProgress(t)
       if (t < 1) {
         rafId = requestAnimationFrame(tick)
       } else {
@@ -72,5 +57,5 @@ export function useAnimatedPosition(
     return () => cancelAnimationFrame(rafId)
   }, [polyline, durationMs, playing])
 
-  return position
+  return { position, progress }
 }

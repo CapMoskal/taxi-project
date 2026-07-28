@@ -55,8 +55,36 @@ test('full ride: pickup through payment/rating and back to a fresh pickup screen
   await page.getByRole('button', { name: 'Начать поездку' }).click()
   await expect(page.locator('[data-slot="driver-card"]')).toContainText('В пути к месту назначения')
 
-  // inRide leg (6s animated) -> completed
-  await page.clock.fastForward(6200)
+  const getRouteLineCoords = () =>
+    page.evaluate(() => {
+      const map = (window as unknown as { __map?: import('maplibre-gl').Map }).__map
+      const src = map?.getSource('route-line') as unknown as
+        | { _data?: { geojson?: { geometry?: { coordinates?: [number, number][] } } } }
+        | undefined
+      return src?._data?.geojson?.geometry?.coordinates ?? null
+    })
+
+  const fullRouteCoords = await getRouteLineCoords()
+  expect(fullRouteCoords).not.toBeNull()
+
+  // inRide leg (6s animated), split in half to check the "erasing" route
+  // line mid-flight — regression for the taxi-as-eraser bug (see
+  // decisions.md): the line must shrink as the taxi progresses A→B, not
+  // stay static for the whole leg. `toPass` (not a single read) because
+  // `fastForward`'s promise can resolve a beat before React's last
+  // rAF-triggered state update actually commits to the DOM/map — same
+  // race class as the driver-search retry above, same fix (poll).
+  await page.clock.fastForward(3000)
+  await expect(async () => {
+    const midRouteCoords = await getRouteLineCoords()
+    expect(midRouteCoords).not.toBeNull()
+    expect(midRouteCoords!.length).toBeLessThan(fullRouteCoords!.length)
+    // The remaining line's head must have moved away from A (pickup) —
+    // proof it's trimmed from the start, not just a coincidentally shorter route.
+    expect(midRouteCoords![0]).not.toEqual(fullRouteCoords![0])
+  }).toPass({ timeout: 2000 })
+
+  await page.clock.fastForward(3200)
   await expect(page.getByRole('heading', { name: 'Поездка завершена' })).toBeVisible()
 
   // Payment
