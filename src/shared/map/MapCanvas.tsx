@@ -162,10 +162,24 @@ function MapCanvas({
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
-
-    const run = () => applyRouteLine(map, routeLine)
-    if (map.isStyleLoaded()) run()
-    else map.once('load', run)
+    // setData() on an already-existing source is safe at any moment, even
+    // while the map is still loading tiles (the same path the in-ride
+    // route-erase animation relies on for 60fps updates) — isStyleLoaded()
+    // only needs to gate the very first source+layer creation. It goes
+    // temporarily false while the map settles after a large jumpTo/fitBounds
+    // (e.g. picking a far-away address) — the old `.once('load', ...)` here
+    // silently dropped the update in that window, because `load` only ever
+    // fires once per map instance (already spent by the time this runs) —
+    // found via manual repro, not a failing test (see docs/decisions.md).
+    if (map.getSource(ROUTE_LINE_SOURCE_ID) || map.isStyleLoaded()) {
+      applyRouteLine(map, routeLine)
+      return
+    }
+    const apply = () => applyRouteLine(map, routeLineRef.current)
+    map.once('idle', apply)
+    return () => {
+      map.off('idle', apply)
+    }
   }, [routeLine])
 
   useEffect(() => {
@@ -184,14 +198,14 @@ function MapCanvas({
     // `isStyleLoaded()` is NOT trustworthy synchronously right after our own
     // `setStyle()` call — it can still reflect the outgoing style's "loaded"
     // state for a moment before the swap actually starts, so checking it
-    // immediately (like the routeLine effect below does for the *initial*
-    // style load) races the real swap: we'd add the layer to the
+    // immediately races the real swap: we'd add the layer to the
     // about-to-be-replaced style, which then gets wiped seconds later with
     // no listener left to reapply it (found via manual testing — the layer
     // would appear for one frame, then vanish). Instead: `styledata` fires
     // repeatedly during a style transition, and only some firings have
     // `isStyleLoaded()` true for the *new* style — poll on every firing
-    // until it is, then detach.
+    // until it is, then detach. (The routeLine effect above has a related
+    // but distinct isStyleLoaded() pitfall — see its comment.)
     const tryApply = () => {
       if (!map.isStyleLoaded()) return
       map.off('styledata', tryApply)
