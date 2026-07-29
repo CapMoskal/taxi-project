@@ -1,4 +1,4 @@
-import { Car, Clock, CreditCard, Headphones, Info, MapPin, Settings, ShieldCheck, Star, Wallet } from 'lucide-react'
+import { Briefcase, Car, Clock, CreditCard, Headphones, Info, MapPin, Settings, ShieldCheck, Star, Wallet } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useGetUserProfileQuery } from '@/entities/user/api'
 import { useGetPaymentMethodsQuery } from '@/entities/payment-method/api'
@@ -97,6 +97,11 @@ function ProfileScreen() {
               icon={<Car className="h-4 w-4 text-foreground" />}
               label="Водителям"
               onClick={() => navigate('drivers')}
+            />
+            <ListRow
+              icon={<Briefcase className="h-4 w-4 text-foreground" />}
+              label="Бизнесу"
+              onClick={() => navigate('business')}
             />
           </div>
         </div>
