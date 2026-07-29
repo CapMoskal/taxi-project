@@ -39,6 +39,53 @@ test.describe('pickup (A) and destination (B) screens', () => {
     }).toPass()
   })
 
+  test('tapping the pickup pill lets you type point A manually, dragging still works after', async ({ page }) => {
+    await page.goto('/')
+    await expect(page.locator('[data-slot="pickup-pill"]')).toContainText('Тверская')
+
+    await page.locator('[data-slot="pickup-pill"]').click()
+    await page.locator('[data-slot="pickup-address-input"]').fill('Красная')
+
+    const results = page.locator('[data-slot="pickup-address-results"]')
+    await results.getByText('Красная площадь', { exact: false }).first().click()
+
+    // Picking a result jumps the map there and returns to the plain pill —
+    // stays on screen A (no CONFIRM_PICKUP), unlike picking a recent address.
+    await expect(page.locator('[data-slot="pickup-address-input"]')).toHaveCount(0)
+    await expect(page.locator('[data-slot="destination-sheet"]')).toHaveCount(0)
+
+    await expect(async () => {
+      const center = await page.evaluate(() => {
+        const map = (window as unknown as { __map?: import('maplibre-gl').Map }).__map!
+        const c = map.getCenter()
+        return { lat: c.lat, lng: c.lng }
+      })
+      expect(center.lng).toBeCloseTo(37.6208, 2)
+      expect(center.lat).toBeCloseTo(55.7539, 2)
+    }).toPass()
+
+    // Dragging still fine-tunes point A from the new center afterward.
+    const before = await page.evaluate(() => {
+      const map = (window as unknown as { __map?: import('maplibre-gl').Map }).__map!
+      const c = map.getCenter()
+      return { lat: c.lat, lng: c.lng }
+    })
+    const box = (await page.locator('canvas').first().boundingBox())!
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(box.x + box.width / 2 + 80, box.y + box.height / 2 - 90, { steps: 10 })
+    await page.mouse.up()
+
+    await expect(async () => {
+      const after = await page.evaluate(() => {
+        const map = (window as unknown as { __map?: import('maplibre-gl').Map }).__map!
+        const c = map.getCenter()
+        return { lat: c.lat, lng: c.lng }
+      })
+      expect(after).not.toEqual(before)
+    }).toPass()
+  })
+
   test('"Куда едем?" advances to the destination screen', async ({ page }) => {
     await page.goto('/')
     await page.locator('[data-slot="pickup-where-to"]').click()
