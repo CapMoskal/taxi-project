@@ -10,6 +10,7 @@ export type Screen =
   | 'info'
   | 'support'
   | 'passengers'
+  | 'drivers'
 
 export interface NavigationContextValue {
   screen: Screen

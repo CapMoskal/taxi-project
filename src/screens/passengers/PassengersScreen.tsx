@@ -1,10 +1,7 @@
 import { Baby, CreditCard, Headphones, Lock, ShieldCheck, Umbrella } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
-import { ScreenShell } from '@/shared/ui/ScreenShell'
-import { useNavigation } from '@/app/navigationContext'
-import { useIsDesktop } from '@/shared/lib/useIsDesktop'
+import { TopicPageScreen, type Topic } from '@/screens/_shared/TopicPageScreen'
 
-const TOPICS: { icon: LucideIcon; title: string; description: string }[] = [
+const TOPICS: Topic[] = [
   {
     icon: ShieldCheck,
     title: 'Безопасность в поездке',
@@ -37,42 +34,16 @@ const TOPICS: { icon: LucideIcon; title: string; description: string }[] = [
   },
 ]
 
+const INTRO =
+  'Мы делаем поездки на такси комфортнее и безопаснее — постоянно улучшаем стандарты качества и ' +
+  'технологии, которые помогают заботиться о пассажирах на каждом этапе поездки.'
+
 // One flat page — intro + a grid of topic cards (Eugene confirmed: cards are
 // a visual grouping, not a second navigation level). Styled after the Yandex
 // Go reference (docs/decisions.md, 2026-07-28) but with our own taxi-app
 // copy, not a clone of theirs (COVID/scooters etc. dropped as irrelevant).
 function PassengersScreen() {
-  const { navigate } = useNavigation()
-  const isDesktop = useIsDesktop()
-
-  // Flat navigation (no history stack) — desktop arrived via the navbar tab
-  // (peer of the order screen), mobile arrived via Профиль's quick links.
-  const handleBack = () => navigate(isDesktop ? 'order' : 'profile')
-
-  return (
-    <ScreenShell title="Пассажирам" onBack={handleBack}>
-      <div className="flex flex-col gap-6">
-        <p className="text-sm text-muted-foreground">
-          Мы делаем поездки на такси комфортнее и безопаснее — постоянно улучшаем стандарты качества и
-          технологии, которые помогают заботиться о пассажирах на каждом этапе поездки.
-        </p>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {TOPICS.map(({ icon: Icon, title, description }) => (
-            <div key={title} className="flex flex-col gap-3 rounded-xl border border-border p-4">
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-                <Icon className="h-5 w-5 text-foreground" />
-              </span>
-              <div className="flex flex-col gap-1">
-                <p className="text-sm font-medium text-foreground">{title}</p>
-                <p className="text-sm text-muted-foreground">{description}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </ScreenShell>
-  )
+  return <TopicPageScreen title="Пассажирам" intro={INTRO} topics={TOPICS} />
 }
 
 export { PassengersScreen }

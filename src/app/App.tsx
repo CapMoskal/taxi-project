@@ -7,6 +7,7 @@ import { SettingsScreen } from '@/screens/profile/SettingsScreen'
 import { InfoScreen } from '@/screens/profile/InfoScreen'
 import { SupportScreen } from '@/screens/profile/SupportScreen'
 import { PassengersScreen } from '@/screens/passengers/PassengersScreen'
+import { DriversScreen } from '@/screens/drivers/DriversScreen'
 import { OrderFlowProvider } from '@/features/order-flow/context'
 import { OfflineBanner } from '@/shared/ui/OfflineBanner'
 import { DesktopNavbar } from '@/screens/_layout/DesktopNavbar'
@@ -24,6 +25,7 @@ function AppScreens() {
   if (screen === 'info') return <InfoScreen />
   if (screen === 'support') return <SupportScreen />
   if (screen === 'passengers') return <PassengersScreen />
+  if (screen === 'drivers') return <DriversScreen />
   return <OrderScreen />
 }
 

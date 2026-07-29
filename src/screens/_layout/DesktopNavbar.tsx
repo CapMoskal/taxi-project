@@ -7,10 +7,11 @@ import { cn } from '@/lib/utils'
 // Matches the Yandex reference's menu row (see docs/roadmap.md, 2026-07-27
 // screenshot) — corp-site chrome, not all of it maps to a feature of this
 // app yet. Items without a `screen` stay inert (no navigate target) until
-// their own feature lands (Пассажирам first, 2026-07-28 — see decisions.md).
+// their own feature lands (Пассажирам 2026-07-28, Водителям 2026-07-29 —
+// see decisions.md).
 const MENU_ITEMS: { label: string; screen?: Screen }[] = [
   { label: 'Пассажирам', screen: 'passengers' },
-  { label: 'Водителям' },
+  { label: 'Водителям', screen: 'drivers' },
   { label: 'Бизнесу' },
   { label: 'Помощь' },
 ]
