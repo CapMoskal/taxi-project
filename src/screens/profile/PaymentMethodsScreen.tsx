@@ -44,21 +44,21 @@ function AddCardSheet({ onClose }: { onClose: () => void }) {
             onChange={(e) => setNumber(e.target.value)}
             inputMode="numeric"
             placeholder="Номер карты"
-            className="w-full rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            className="w-full rounded-lg border border-border bg-transparent px-3 py-2 text-base text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
           />
           <div className="flex gap-3">
             <input
               value={expiry}
               onChange={(e) => setExpiry(e.target.value)}
               placeholder="ММ/ГГ"
-              className="w-full rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+              className="w-full rounded-lg border border-border bg-transparent px-3 py-2 text-base text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
             />
             <input
               value={cvc}
               onChange={(e) => setCvc(e.target.value)}
               inputMode="numeric"
               placeholder="CVC"
-              className="w-full rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+              className="w-full rounded-lg border border-border bg-transparent px-3 py-2 text-base text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
             />
           </div>
         </div>
