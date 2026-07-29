@@ -34,13 +34,24 @@ function TopicPageScreen({ title, intro, topics, children }: TopicPageScreenProp
   return (
     <ScreenShell title={title} onBack={handleBack}>
       <div className="flex flex-col gap-6">
-        <p className="text-sm text-muted-foreground">{intro}</p>
+        <p className="text-base text-muted-foreground">{intro}</p>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {topics.map(({ icon: Icon, title: topicTitle, description }) => (
-            <div key={topicTitle} className="flex flex-col gap-3 rounded-xl border border-border p-4">
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-                <Icon className="h-5 w-5 text-foreground" />
+            // bg-card + shadow (not a border) is what makes this lift work in
+            // BOTH themes: light theme has --card == --background (white on
+            // white), so the shadow alone does the lifting; dark theme has
+            // --card lighter than --background, so the tonal difference does
+            // it there (a shadow alone would barely show on dark). Deliberately
+            // not a <button>/no cursor-pointer — Eugene wants a hover effect
+            // without implying the card leads anywhere (it doesn't, one-level
+            // nav, see docs/decisions.md 2026-07-29).
+            <div
+              key={topicTitle}
+              className="flex flex-col gap-3 rounded-2xl bg-card p-4 shadow-sm transition-shadow duration-200 hover:shadow-md sm:p-6"
+            >
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                <Icon className="h-5 w-5 text-primary" />
               </span>
               <div className="flex flex-col gap-1">
                 <p className="text-sm font-medium text-foreground">{topicTitle}</p>
