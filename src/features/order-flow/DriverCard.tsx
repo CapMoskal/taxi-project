@@ -1,6 +1,7 @@
 import { Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InitialsAvatar } from '@/shared/ui/InitialsAvatar'
+import { OrderCard } from '@/shared/ui/OrderCard'
 import { useIsDesktop } from '@/shared/lib/useIsDesktop'
 import { useOrderFlowActorRef, useOrderFlowSelector } from './context'
 
@@ -26,15 +27,8 @@ function DriverCard() {
         ? 'Ждёт у подъезда'
         : 'В пути к месту назначения'
 
-  return (
-    <div
-      className={
-        isDesktop
-          ? 'flex flex-col gap-3 p-4'
-          : 'absolute inset-x-0 top-0 z-10 m-4 flex flex-col gap-3 rounded-xl border border-border bg-background/95 p-3 shadow-lg backdrop-blur'
-      }
-      data-slot="driver-card"
-    >
+  const content = (
+    <>
       <div className="flex items-center gap-3">
         <InitialsAvatar name={driver.name} className="h-10 w-10 text-sm" />
         <div className="min-w-0 flex-1">
@@ -65,6 +59,23 @@ function DriverCard() {
           Отменить
         </button>
       )}
+    </>
+  )
+
+  if (isDesktop) {
+    return (
+      <OrderCard className="flex flex-col gap-3" data-slot="driver-card">
+        {content}
+      </OrderCard>
+    )
+  }
+
+  return (
+    <div
+      className="absolute inset-x-0 top-0 z-10 m-4 flex flex-col gap-3 rounded-xl border border-border bg-background/95 p-3 shadow-lg backdrop-blur"
+      data-slot="driver-card"
+    >
+      {content}
     </div>
   )
 }

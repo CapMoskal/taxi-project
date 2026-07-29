@@ -36,11 +36,19 @@ export const orderFlowMachine = setup({
   initial: 'selectingPickup',
   context: initialContext,
   // Available in every state so PickupResolver can seed userLocation/pickup
-  // as soon as geolocation settles — see docs/decisions.md.
+  // as soon as geolocation settles — see docs/decisions.md. SELECT_CLASS is
+  // global for the same reason since 2d: OrderComposePanel's class grid (and
+  // its auto-select effect) now render as soon as pickup resolves, before
+  // the machine reaches selectingClass (destination not set yet) — a
+  // state-scoped handler would silently drop the event (XState's default for
+  // unhandled events), and the "Заказать" button never gets a selectedQuote
+  // to show a real price with. Only OrderComposePanel can ever send this
+  // (UI-gated), so it being reachable outside selectingClass is harmless.
   on: {
     SET_LAYOUT: { actions: assign({ layout: ({ event }) => event.layout }) },
     SET_USER_LOCATION: { actions: assign({ userLocation: ({ event }) => event.coords }) },
     SET_PICKUP: { actions: assign({ pickup: ({ event }) => event.coords }) },
+    SELECT_CLASS: { actions: assign({ selectedClassId: ({ event }) => event.classId }) },
   },
   states: {
     selectingPickup: {
@@ -69,7 +77,6 @@ export const orderFlowMachine = setup({
         // so it's inert there. Lets dragging the map / re-searching "Куда"
         // update B without leaving the compose view.
         SET_DESTINATION: { actions: assign({ destination: ({ event }) => event.coords }) },
-        SELECT_CLASS: { actions: assign({ selectedClassId: ({ event }) => event.classId }) },
         CONFIRM_CLASS: {
           target: 'searchingDriver',
           guard: 'hasSelectedClass',

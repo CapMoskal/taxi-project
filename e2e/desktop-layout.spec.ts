@@ -42,25 +42,39 @@ test.describe('desktop layout (lg breakpoint)', () => {
     await expect(page.locator('button[aria-label="Профиль"]:visible')).toHaveCount(1)
   })
 
-  test('order flow composes addresses + classes + payment + order co-visible in the rail (2c)', async ({ page }) => {
+  test('order flow composes addresses + classes + payment + order co-visible in the rail (2d)', async ({ page }) => {
     await page.goto('/')
 
-    // No floating pickup-pill / mobile sheets on desktop — the compose panel
-    // renders a single co-visible block instead (see OrderComposePanel.tsx).
+    // No floating pickup-pill / mobile sheets on desktop — several
+    // independent floating OrderCards render in the rail instead (see
+    // OrderComposePanel.tsx / taxi.yandex.ru reference), not one single block.
     await expect(page.locator('[data-slot="pickup-pill"]')).toHaveCount(0)
     const rail = page.locator('[data-slot="order-rail"]')
     await expect(rail.locator('[data-slot="order-compose"]')).toBeVisible()
 
-    // Rail and map area are real flex siblings, not stacked/overlaid — the
-    // map area must start where the rail ends, not underneath it.
+    // Since 2d the rail is a transparent gap-container floating over a
+    // full-bleed map (each card inside carries its own elevation, not the
+    // rail itself) — the map area starts at/before the rail's left edge and
+    // extends past its right edge, and the rail itself is inset from the
+    // viewport edges (offset by lg:left-4/top-4, not flush).
     const railBox = (await rail.boundingBox())!
     const mapAreaBox = (await page.locator('[data-slot="order-map-area"]').boundingBox())!
-    expect(mapAreaBox.x).toBeGreaterThanOrEqual(railBox.x + railBox.width)
+    expect(mapAreaBox.x).toBeLessThanOrEqual(railBox.x)
+    expect(mapAreaBox.x + mapAreaBox.width).toBeGreaterThan(railBox.x + railBox.width)
+    expect(railBox.x).toBeGreaterThan(0)
+    expect(railBox.y).toBeGreaterThan(0)
 
     // Desktop auto-fast-forwards past the standalone pickup step (machine.ts
     // `always` transitions) — "Откуда" is already an editable row with the
     // resolved address, not a separate confirm step.
     await expect(rail.locator('[data-slot="compose-from"]')).toBeVisible()
+
+    // Since 2d, classes/payment/order show as soon as pickup resolves —
+    // Yandex-style "от X ₽" estimates, not gated on destination.
+    await expect(rail.locator('[data-slot="compose-order"]')).toBeVisible()
+    await expect(rail.locator('[data-slot="compose-payment"]')).toBeVisible()
+    await expect(rail.locator('button[aria-pressed="true"]')).toBeVisible()
+    await expect(rail.getByText('от', { exact: false }).first()).toBeVisible()
 
     // Type a destination and pick a search result — this alone should set
     // B and fall through to the compose-anchor state (no confirm button).
@@ -68,10 +82,8 @@ test.describe('desktop layout (lg breakpoint)', () => {
     const results = rail.locator('[data-slot="compose-to-results"]')
     await results.getByText('Красная площадь', { exact: false }).first().click()
 
-    // Classes, payment, and "Заказать" all co-visible once B is set.
-    await expect(rail.locator('[data-slot="compose-order"]')).toBeVisible()
-    await expect(rail.locator('[data-slot="compose-payment"]')).toBeVisible()
-    await expect(rail.locator('button[aria-pressed="true"]')).toBeVisible()
+    // Once B is set, prices become exact — no more "от" prefix.
+    await expect(rail.getByText('от', { exact: false })).toHaveCount(0)
 
     // Road-following route still renders on the map behind the rail (2b/2c
     // keep the underlying routing untouched, only relocate the phase chrome)

@@ -18,11 +18,15 @@ export const rideClassHandlers: HttpHandler[] = [
       lat: Number(url.searchParams.get('pickupLat')),
       lng: Number(url.searchParams.get('pickupLng')),
     }
-    const destination = {
-      lat: Number(url.searchParams.get('destLat')),
-      lng: Number(url.searchParams.get('destLng')),
-    }
-    const distanceKm = haversineDistanceMeters(pickup, destination) / 1000
+    const destLat = url.searchParams.get('destLat')
+    const destLng = url.searchParams.get('destLng')
+    // No destination yet (desktop shows classes as soon as pickup resolves,
+    // "от X ₽" — see entities/ride-class/api.ts) → base fare only, no
+    // distance component (not haversine against a missing/zero destination).
+    const distanceKm =
+      destLat !== null && destLng !== null
+        ? haversineDistanceMeters(pickup, { lat: Number(destLat), lng: Number(destLng) }) / 1000
+        : 0
 
     const quotes: RideClassQuote[] = RIDE_CLASSES.map((rideClass) => ({
       classId: rideClass.id,
