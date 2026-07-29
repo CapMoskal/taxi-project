@@ -5,15 +5,12 @@ import { useNavigation, type Screen } from '@/app/navigationContext'
 import { cn } from '@/lib/utils'
 
 // Matches the Yandex reference's menu row (see docs/roadmap.md, 2026-07-27
-// screenshot) — corp-site chrome, not all of it maps to a feature of this
-// app yet. "Помощь" stays inert (no navigate target) — outside this line of
-// features (Пассажирам 2026-07-28, Водителям + Бизнесу 2026-07-29 — see
-// decisions.md).
-const MENU_ITEMS: { label: string; screen?: Screen }[] = [
+// screenshot), minus "Помощь" — dropped at Eugene's request (2026-07-29),
+// out of scope for this app.
+const MENU_ITEMS: { label: string; screen: Screen }[] = [
   { label: 'Пассажирам', screen: 'passengers' },
   { label: 'Водителям', screen: 'drivers' },
   { label: 'Бизнесу', screen: 'business' },
-  { label: 'Помощь' },
 ]
 
 // Desktop-only chrome (hidden below `lg`) — the mobile flow keeps its
@@ -30,25 +27,19 @@ function DesktopNavbar() {
       <span className="text-lg font-semibold text-foreground">Такси</span>
 
       <nav className="flex flex-1 items-center justify-end gap-6">
-        {MENU_ITEMS.map((item) =>
-          item.screen ? (
-            <button
-              key={item.label}
-              type="button"
-              onClick={() => navigate(item.screen!)}
-              className={cn(
-                'rounded-md text-sm outline-none ring-ring transition-colors hover:text-foreground focus-visible:ring-2',
-                screen === item.screen ? 'text-foreground' : 'text-muted-foreground',
-              )}
-            >
-              {item.label}
-            </button>
-          ) : (
-            <span key={item.label} className="text-sm text-muted-foreground transition-colors hover:text-foreground">
-              {item.label}
-            </span>
-          ),
-        )}
+        {MENU_ITEMS.map((item) => (
+          <button
+            key={item.label}
+            type="button"
+            onClick={() => navigate(item.screen)}
+            className={cn(
+              'rounded-md text-sm outline-none ring-ring transition-colors hover:text-foreground focus-visible:ring-2',
+              screen === item.screen ? 'text-foreground' : 'text-muted-foreground',
+            )}
+          >
+            {item.label}
+          </button>
+        ))}
       </nav>
 
       <button
