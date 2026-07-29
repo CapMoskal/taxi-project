@@ -71,6 +71,7 @@ function OrderComposePanel({ mapRef }: OrderComposePanelProps) {
     data: quotes,
     isLoading: isLoadingQuotes,
     isError: isQuotesError,
+    refetch: refetchQuotes,
   } = useGetRideClassQuotesQuery(pickup ? { pickup, destination: destination ?? undefined } : skipToken)
 
   // Yandex-style default: pre-select the first class as soon as quotes load
@@ -81,7 +82,14 @@ function OrderComposePanel({ mapRef }: OrderComposePanelProps) {
     }
   }, [quotes, selectedClassId, actorRef])
 
-  const selectedQuote = quotes?.find((quote) => quote.classId === selectedClassId)
+  // RTK Query's `data` intentionally keeps the last successful result from
+  // the PREVIOUS args (e.g. the pickup-only "от X ₽" estimate) while a new
+  // request is in flight or has failed — great for avoiding flicker, but it
+  // means a failed refetch after setting destination would otherwise show
+  // stale, undistance-adjusted prices as if they were current (real bug,
+  // reported by Eugene: error text + wrong low prices shown together).
+  // Never treat `quotes` as current while the latest request errored.
+  const selectedQuote = !isQuotesError ? quotes?.find((quote) => quote.classId === selectedClassId) : undefined
 
   const handlePickPickupResult = (place: Place) => {
     actorRef.send({ type: 'SET_PICKUP', coords: place.coords })
@@ -207,13 +215,24 @@ function OrderComposePanel({ mapRef }: OrderComposePanelProps) {
         <>
           <OrderCard className="flex flex-col gap-2">
             {isLoadingQuotes && <p className="text-sm text-muted-foreground">Считаем цену…</p>}
-            {isQuotesError && <p className="text-sm text-destructive">Не удалось загрузить классы. Попробуйте ещё раз.</p>}
-            <ClassGrid
-              quotes={quotes}
-              selectedClassId={selectedClassId}
-              onSelect={(classId) => actorRef.send({ type: 'SELECT_CLASS', classId })}
-              estimate={!destination}
-            />
+            {isQuotesError ? (
+              // Not rendering ClassGrid here on purpose — `quotes` still holds
+              // the last successful (now stale, possibly distance-mismatched)
+              // result, see the comment above `selectedQuote`.
+              <div className="flex flex-col gap-2">
+                <p className="text-sm text-destructive">Не удалось загрузить классы. Попробуйте ещё раз.</p>
+                <Button size="sm" onClick={() => refetchQuotes()}>
+                  Повторить
+                </Button>
+              </div>
+            ) : (
+              <ClassGrid
+                quotes={quotes}
+                selectedClassId={selectedClassId}
+                onSelect={(classId) => actorRef.send({ type: 'SELECT_CLASS', classId })}
+                estimate={!destination}
+              />
+            )}
           </OrderCard>
 
           <OrderCard>
