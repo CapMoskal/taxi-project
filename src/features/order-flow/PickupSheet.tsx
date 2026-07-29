@@ -1,12 +1,14 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import type maplibregl from 'maplibre-gl'
 import { skipToken } from '@reduxjs/toolkit/query/react'
 import { ChevronRight, Search } from 'lucide-react'
 import { BottomSheet } from '@/shared/ui/BottomSheet'
-import { useReverseGeocodeQuery } from '@/shared/map/geocodingApi'
+import { useReverseGeocodeQuery, useSearchPlacesQuery } from '@/shared/map/geocodingApi'
+import type { Place } from '@/shared/map/geocodingApi'
 import { useGetRecentPlacesQuery } from '@/entities/recent-place/api'
 import type { RecentPlace } from '@/entities/recent-place/types'
+import { useDebouncedValue } from '@/shared/lib/useDebouncedValue'
 import { useOrderFlowActorRef, useOrderFlowSelector } from './context'
 import { PlaceRow } from './PlaceRow'
 
@@ -27,6 +29,19 @@ function PickupSheet({ mapRef }: PickupSheetProps) {
   const pickup = useOrderFlowSelector((state) => state.context.pickup)
   const { data: pickupAddress } = useReverseGeocodeQuery(pickup ?? skipToken)
   const { data: recentPlaces } = useGetRecentPlacesQuery()
+
+  // Manual pickup-address entry — tapping the pill swaps it for a search
+  // input, same pattern as OrderComposePanel's `isEditingPickup` on desktop
+  // (see OrderComposePanel.tsx). Point A stays adjustable by dragging
+  // afterward — this only jumps the map there first.
+  const [isEditingPickup, setIsEditingPickup] = useState(false)
+  const [pickupQuery, setPickupQuery] = useState('')
+  const debouncedPickupQuery = useDebouncedValue(pickupQuery, 300)
+  const { data: pickupResults, isFetching: isSearchingPickup } = useSearchPlacesQuery(
+    debouncedPickupQuery.trim().length >= 2
+      ? { query: debouncedPickupQuery.trim(), proximity: pickup ?? undefined }
+      : skipToken,
+  )
 
   // Point A follows the map center as the user drags — same "center pin is
   // the point" interaction DestinationSheet uses for B. Gated on a real
@@ -73,6 +88,18 @@ function PickupSheet({ mapRef }: PickupSheetProps) {
     actorRef.send({ type: 'CONFIRM_PICKUP' })
   }
 
+  // Unlike handlePickRecent, this stays on screen A — the user picked a
+  // starting address, not "where to" — SET_PICKUP only, no CONFIRM_PICKUP.
+  // jumpTo doesn't raise `dragstart` (see the comment above), so this won't
+  // double-fire through the drag listener; dragging afterward still works
+  // as fine-tuning from the new center.
+  const handlePickPickupResult = (place: Place) => {
+    mapRef.current?.jumpTo({ center: [place.coords.lng, place.coords.lat], zoom: 15 })
+    actorRef.send({ type: 'SET_PICKUP', coords: place.coords })
+    setIsEditingPickup(false)
+    setPickupQuery('')
+  }
+
   const listContent = (
     <>
       <button
@@ -110,14 +137,56 @@ function PickupSheet({ mapRef }: PickupSheetProps) {
     <>
       {/* left-20 clears the profile avatar (ProfileButton, `left-4` + 44px) so
           the pill never overlaps it, however long the resolved address is. */}
-      <div
-        className="absolute left-20 right-4 top-4 z-10 rounded-2xl bg-background px-4 py-3 text-center shadow-lg"
-        data-slot="pickup-pill"
-      >
-        <p className="text-xs text-muted-foreground">Точка подачи</p>
-        <p className="truncate text-sm font-medium text-foreground">
-          {pickup ? pickupAddress || '…' : 'Определяем местоположение…'}
-        </p>
+      <div className="absolute left-20 right-4 top-4 z-10">
+        {isEditingPickup ? (
+          <div className="rounded-2xl bg-background p-3 shadow-lg">
+            <div className="flex items-center gap-2 rounded-lg border border-border px-3 py-2">
+              <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <input
+                autoFocus
+                value={pickupQuery}
+                onChange={(e) => setPickupQuery(e.target.value)}
+                onBlur={() => {
+                  if (!pickupQuery) setIsEditingPickup(false)
+                }}
+                placeholder="Введите адрес подачи"
+                className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+                data-slot="pickup-address-input"
+              />
+            </div>
+            {isSearchingPickup && <p className="mt-2 px-1 text-xs text-muted-foreground">Ищем…</p>}
+            {pickupResults && pickupResults.length > 0 && (
+              <div
+                className="mt-1 flex max-h-64 flex-col overflow-y-auto"
+                onMouseDown={(e) => e.preventDefault()}
+                data-slot="pickup-address-results"
+              >
+                {pickupResults.map((place) => (
+                  <PlaceRow
+                    key={place.id}
+                    name={place.name}
+                    subtitle={place.address}
+                    icon="place"
+                    onClick={() => handlePickPickupResult(place)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setIsEditingPickup(true)}
+            aria-label="Изменить точку подачи"
+            className="w-full rounded-2xl bg-background px-4 py-3 text-center shadow-lg"
+            data-slot="pickup-pill"
+          >
+            <p className="text-xs text-muted-foreground">Точка подачи</p>
+            <p className="truncate text-sm font-medium text-foreground">
+              {pickup ? pickupAddress || '…' : 'Определяем местоположение…'}
+            </p>
+          </button>
+        )}
       </div>
 
       {/* max-h caps the sheet well under 50% of the viewport — the center pin
