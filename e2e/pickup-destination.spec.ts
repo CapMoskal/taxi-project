@@ -108,6 +108,26 @@ test.describe('pickup (A) and destination (B) screens', () => {
     await expect(confirmButton).toBeInViewport()
   })
 
+  test('the "×" clears the destination search input', async ({ page }) => {
+    await page.goto('/')
+    await page.getByRole('button', { name: /Тверская/ }).click()
+
+    const input = page.locator('[data-slot="destination-input"]')
+    // No "×" until there's text to clear — mobile never commits `destination`
+    // to context before the confirm button, so this is purely a text reset
+    // here (unlike the desktop compose panel — see decisions.md).
+    await expect(page.locator('[data-slot="destination-clear"]')).toHaveCount(0)
+
+    await input.fill('Красная площадь')
+    await expect(page.locator('[data-slot="destination-clear"]')).toBeVisible()
+
+    await page.locator('[data-slot="destination-clear"]').click()
+    await expect(input).toHaveValue('')
+    // Sheet stays open, confirm button still reachable — clearing text isn't
+    // a dead end.
+    await expect(page.locator('[data-slot="destination-confirm-footer"] button')).toBeInViewport()
+  })
+
   test('confirming B produces a road-following route and non-degenerate pickup/destination', async ({ page }) => {
     await page.goto('/')
     await page.getByRole('button', { name: /Тверская/ }).click()

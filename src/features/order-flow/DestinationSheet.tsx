@@ -3,7 +3,7 @@ import type { RefObject } from 'react'
 import type maplibregl from 'maplibre-gl'
 import { animate, motion, useMotionValue } from 'motion/react'
 import type { PanInfo } from 'motion/react'
-import { Search } from 'lucide-react'
+import { Search, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useOrderFlowActorRef, useOrderFlowSelector } from './context'
 import { useDestinationSync } from './useDestinationSync'
@@ -29,6 +29,7 @@ interface DestinationSheetProps {
 function DestinationSheet({ mapRef }: DestinationSheetProps) {
   const actorRef = useOrderFlowActorRef()
   const pickup = useOrderFlowSelector((state) => state.context.pickup)
+  const destination = useOrderFlowSelector((state) => state.context.destination)
 
   const [snap, setSnap] = useState<SheetSnap>('peek')
   const snapRef = useRef<SheetSnap>('peek')
@@ -96,6 +97,16 @@ function DestinationSheet({ mapRef }: DestinationSheetProps) {
     actorRef.send({ type: 'CONFIRM_DESTINATION' })
   }
 
+  // On mobile `destination` isn't committed to context until CONFIRM_DESTINATION
+  // (unlike desktop's compose panel, which commits on every pick/drag-settle —
+  // see OrderComposePanel.tsx) — so this is usually just a text/search reset.
+  // Still sends CLEAR_DESTINATION for a uniform clear-button event across both
+  // viewports; harmless here since destination is already null at this point.
+  const handleClearDestination = () => {
+    setQuery('')
+    actorRef.send({ type: 'CLEAR_DESTINATION' })
+  }
+
   return (
     <>
       <motion.div
@@ -128,9 +139,21 @@ function DestinationSheet({ mapRef }: DestinationSheetProps) {
                 isInputFocusedRef.current = false
               }}
               placeholder="Куда едем?"
-              className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+              className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
               data-slot="destination-input"
             />
+            {(query.length > 0 || destination) && (
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={handleClearDestination}
+                aria-label="Очистить"
+                className="shrink-0 text-muted-foreground hover:text-foreground"
+                data-slot="destination-clear"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
           {isSearching && showSearch && <p className="mt-2 text-xs text-muted-foreground">Ищем…</p>}
           {showSearch && !isSearching && rows.length === 0 && (
