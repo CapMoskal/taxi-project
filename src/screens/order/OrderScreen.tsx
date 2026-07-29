@@ -180,17 +180,21 @@ function OrderScreen() {
         )}
       </div>
 
-      {/* Floats over the (now full-bleed) map area as an elevated card — see
-          the comment on the map-area div above for why this must still come
-          after it in the DOM/render order despite the visual position being
-          independent now (`lg:absolute`, not flex order). Same guards as the
-          mobile overlay above: `isDesktop &&` (not just `hidden lg:flex`)
-          keeps this from *mounting* a second live instance of whichever
-          phase component is already mounted in the mobile overlay — each has
-          side effects (map listeners, actorRef.send) that must only run
-          once. */}
+      {/* A transparent gap-container floating over the (now full-bleed) map
+          area — NOT itself a card (see taxi.yandex.ru reference: several
+          independent floating cards stacked with gaps, map visible between
+          them, not one big wrapper). Each child below carries its own
+          OrderCard chrome (OrderComposePanel's sections, OrderSurface,
+          DriverCard's desktop branch). Must still come after the map-area
+          div in the DOM/render order despite the visual position being
+          independent (`lg:absolute`, not flex order) — see the comment on
+          the map-area div above. Same guards as the mobile overlay above:
+          `isDesktop &&` (not just `hidden lg:flex`) keeps this from
+          *mounting* a second live instance of whichever phase component is
+          already mounted in the mobile overlay — each has side effects (map
+          listeners, actorRef.send) that must only run once. */}
       <aside
-        className="hidden lg:absolute lg:top-4 lg:bottom-4 lg:left-4 lg:z-10 lg:flex lg:w-[380px] lg:flex-col lg:overflow-y-auto lg:rounded-2xl lg:border lg:border-border lg:bg-card lg:shadow-xl"
+        className="hidden lg:absolute lg:top-4 lg:bottom-4 lg:left-4 lg:z-10 lg:flex lg:w-[380px] lg:flex-col lg:gap-3 lg:overflow-y-auto"
         data-slot="order-rail"
       >
         {isDesktop && (

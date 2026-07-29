@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import type maplibregl from 'maplibre-gl'
 import { skipToken } from '@reduxjs/toolkit/query/react'
 import { Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { OrderCard } from '@/shared/ui/OrderCard'
 import { useGetRideClassQuotesQuery } from '@/entities/ride-class/api'
 import { useSearchPlacesQuery } from '@/shared/map/geocodingApi'
 import type { Place } from '@/shared/map/geocodingApi'
@@ -41,6 +42,10 @@ function OrderComposePanel({ mapRef }: OrderComposePanelProps) {
       : skipToken,
   )
 
+  // Focused (not just scrolled to) when "Заказать" is clicked before a
+  // destination is set — see the button's onClick below.
+  const destinationInputRef = useRef<HTMLInputElement>(null)
+
   const [isDestinationFocused, setIsDestinationFocused] = useState(false)
   const {
     query: destinationQuery,
@@ -59,11 +64,14 @@ function OrderComposePanel({ mapRef }: OrderComposePanelProps) {
     onPick: (coords) => actorRef.send({ type: 'SET_DESTINATION', coords }),
   })
 
+  // Quotes load as soon as pickup resolves (Yandex-style "от X ₽" estimate,
+  // see entities/ride-class) and refetch with exact prices once destination
+  // is set — ClassGrid's `estimate` prop below reflects which state we're in.
   const {
     data: quotes,
     isLoading: isLoadingQuotes,
     isError: isQuotesError,
-  } = useGetRideClassQuotesQuery(pickup && destination ? { pickup, destination } : skipToken)
+  } = useGetRideClassQuotesQuery(pickup ? { pickup, destination: destination ?? undefined } : skipToken)
 
   // Yandex-style default: pre-select the first class as soon as quotes load
   // so "Заказать" is actionable without an extra tap.
@@ -91,8 +99,8 @@ function OrderComposePanel({ mapRef }: OrderComposePanelProps) {
   }
 
   return (
-    <div className="flex h-full flex-col gap-3 p-4" data-slot="order-compose">
-      <div className="flex flex-col gap-1 rounded-xl bg-muted p-1">
+    <>
+      <OrderCard className="flex flex-col gap-1" data-slot="order-compose">
         {isEditingPickup ? (
           <div>
             <div className="flex items-center gap-2 rounded-lg px-3 py-2">
@@ -144,6 +152,7 @@ function OrderComposePanel({ mapRef }: OrderComposePanelProps) {
           <div className="flex items-center gap-2 rounded-lg px-3 py-2">
             <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
             <input
+              ref={destinationInputRef}
               value={destinationQuery}
               onChange={(e) => setDestinationQuery(e.target.value)}
               onFocus={() => {
@@ -187,39 +196,55 @@ function OrderComposePanel({ mapRef }: OrderComposePanelProps) {
             </>
           )}
         </div>
-      </div>
+      </OrderCard>
 
-      {destination && (
+      {/* Classes/payment/order — visible as soon as pickup resolves, not
+          gated on destination (Yandex shows "от X ₽" estimates immediately,
+          see ClassGrid's `estimate` prop and entities/ride-class). Each is
+          its own floating OrderCard (see OrderScreen.tsx's transparent
+          rail), not grouped under the address card. */}
+      {pickup && (
         <>
-          <div className="flex flex-col gap-2">
+          <OrderCard className="flex flex-col gap-2">
             {isLoadingQuotes && <p className="text-sm text-muted-foreground">Считаем цену…</p>}
             {isQuotesError && <p className="text-sm text-destructive">Не удалось загрузить классы. Попробуйте ещё раз.</p>}
             <ClassGrid
               quotes={quotes}
               selectedClassId={selectedClassId}
               onSelect={(classId) => actorRef.send({ type: 'SELECT_CLASS', classId })}
+              estimate={!destination}
             />
-          </div>
+          </OrderCard>
 
-          <PaymentRow />
+          <OrderCard>
+            <PaymentRow />
+          </OrderCard>
 
           <Button
-            className="mt-auto w-full"
-            disabled={!selectedQuote}
-            onClick={() =>
-              selectedQuote &&
-              actorRef.send({
-                type: 'CONFIRM_CLASS',
-                fare: { amount: selectedQuote.price, currency: selectedQuote.currency },
-              })
-            }
+            className="w-full"
+            disabled={Boolean(destination) && !selectedQuote}
+            onClick={() => {
+              // No destination yet — "Заказать" acts as a nudge toward the
+              // one missing step (Yandex's button is always active-looking,
+              // never a disabled dead end) instead of sending CONFIRM_CLASS.
+              if (!destination) {
+                destinationInputRef.current?.focus()
+                return
+              }
+              if (selectedQuote) {
+                actorRef.send({
+                  type: 'CONFIRM_CLASS',
+                  fare: { amount: selectedQuote.price, currency: selectedQuote.currency },
+                })
+              }
+            }}
             data-slot="compose-order"
           >
-            {selectedQuote ? `Заказать · ${formatCurrencyRUB(selectedQuote.price)}` : 'Заказать'}
+            {destination && selectedQuote ? `Заказать · ${formatCurrencyRUB(selectedQuote.price)}` : 'Заказать'}
           </Button>
         </>
       )}
-    </div>
+    </>
   )
 }
 
