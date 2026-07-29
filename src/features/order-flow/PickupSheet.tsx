@@ -150,7 +150,7 @@ function PickupSheet({ mapRef }: PickupSheetProps) {
                   if (!pickupQuery) setIsEditingPickup(false)
                 }}
                 placeholder="Введите адрес подачи"
-                className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+                className="w-full bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground"
                 data-slot="pickup-address-input"
               />
             </div>

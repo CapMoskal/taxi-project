@@ -139,7 +139,7 @@ function DestinationSheet({ mapRef }: DestinationSheetProps) {
                 isInputFocusedRef.current = false
               }}
               placeholder="Куда едем?"
-              className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+              className="min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground"
               data-slot="destination-input"
             />
             {(query.length > 0 || destination) && (
