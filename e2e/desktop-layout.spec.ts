@@ -76,6 +76,9 @@ test.describe('desktop layout (lg breakpoint)', () => {
     await expect(rail.locator('button[aria-pressed="true"]')).toBeVisible()
     await expect(rail.getByText('от', { exact: false }).first()).toBeVisible()
 
+    // No "×" until there's something to clear (empty text, no destination yet).
+    await expect(rail.locator('[data-slot="compose-to-clear"]')).toHaveCount(0)
+
     // Type a destination and pick a search result — this alone should set
     // B and fall through to the compose-anchor state (no confirm button).
     await rail.locator('[data-slot="compose-to"]').fill('Красная площадь')
@@ -97,6 +100,36 @@ test.describe('desktop layout (lg breakpoint)', () => {
     })
     expect(coordsLength).not.toBeNull()
     expect(coordsLength!).toBeGreaterThan(2)
+
+    // The "×" clears the text AND the actual destination (context.destination,
+    // not just the input) — marker/route/prices are driven by context, so
+    // clearing only text would desync the UI from the map (see decisions.md).
+    await rail.locator('[data-slot="compose-to-clear"]').click()
+    await expect(rail.locator('[data-slot="compose-to"]')).toHaveValue('')
+    await expect(rail.getByText('от', { exact: false }).first()).toBeVisible()
+    const coordsAfterClear = await page.evaluate(() => {
+      const map = (window as unknown as { __map?: import('maplibre-gl').Map }).__map
+      const src = map?.getSource('route-line') as unknown as
+        | { _data?: { geojson?: { geometry?: { coordinates?: unknown[] } } } }
+        | undefined
+      return src?._data?.geojson?.geometry?.coordinates?.length ?? null
+    })
+    expect(coordsAfterClear).toBe(0)
+
+    // Pick B again — the clear didn't leave the machine/data-flow stuck.
+    // The previous pick left real DOM focus on the input (kept there via the
+    // dropdown's onMouseDown preventDefault trick) while React's own
+    // `isDestinationFocused` was explicitly set false to close the dropdown
+    // — .fill() alone won't refire a focus event on an already-focused
+    // element, so click elsewhere first to force a real blur/focus cycle.
+    // x=900 is well clear of the 380px-wide rail (offset 16px from the left
+    // edge) — clicking inside the rail's footprint would hit the rail itself
+    // (it overlaps the map area, being `absolute`), not blur the input.
+    await page.locator('[data-slot="order-map-area"]').click({ position: { x: 900, y: 400 } })
+    await rail.locator('[data-slot="compose-to"]').click()
+    await rail.locator('[data-slot="compose-to"]').fill('Красная площадь')
+    await results.getByText('Красная площадь', { exact: false }).first().click()
+    await expect(rail.getByText('от', { exact: false })).toHaveCount(0)
 
     // "Заказать" is actionable — a class is pre-selected as soon as quotes
     // load (Yandex-style default), and clicking it advances the machine.

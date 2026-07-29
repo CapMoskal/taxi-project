@@ -64,6 +64,15 @@ export const orderFlowMachine = setup({
     selectingDestination: {
       on: {
         SET_DESTINATION: { actions: assign({ destination: ({ event }) => event.coords }) },
+        // Self-target: resets destination/selectedClassId even though we're
+        // already here — a plain assign (no target) would work for context,
+        // but the explicit self-transition keeps this symmetric with the
+        // selectingClass handler below and re-evaluates `always` (harmless
+        // here since hasDestination is now false either way).
+        CLEAR_DESTINATION: {
+          target: 'selectingDestination',
+          actions: assign({ destination: () => null, selectedClassId: () => null }),
+        },
         CONFIRM_DESTINATION: { target: 'selectingClass', guard: 'hasDestination' },
       },
       // Desktop: once B is set (search pick or map drag), fall straight
@@ -77,6 +86,20 @@ export const orderFlowMachine = setup({
         // so it's inert there. Lets dragging the map / re-searching "Куда"
         // update B without leaving the compose view.
         SET_DESTINATION: { actions: assign({ destination: ({ event }) => event.coords }) },
+        // The "×" in OrderComposePanel's "Куда" field — desktop-only in
+        // practice (mobile's DestinationSheet never commits `destination`
+        // to context before CONFIRM_DESTINATION, so this event finds
+        // destination already null there — harmless no-op, kept for a
+        // uniform clear-button event across both viewports). Targets
+        // selectingDestination explicitly: desktop's `always` guard
+        // (hasDestination && isDesktopLayout) is now false, so staying in
+        // selectingClass would show the compose panel with no B — target
+        // makes the state machine explicit about "back to picking B"
+        // instead of relying on a guard that happens to not fire.
+        CLEAR_DESTINATION: {
+          target: 'selectingDestination',
+          actions: assign({ destination: () => null, selectedClassId: () => null }),
+        },
         CONFIRM_CLASS: {
           target: 'searchingDriver',
           guard: 'hasSelectedClass',

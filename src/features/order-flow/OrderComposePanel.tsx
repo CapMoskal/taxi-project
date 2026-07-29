@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import type maplibregl from 'maplibre-gl'
 import { skipToken } from '@reduxjs/toolkit/query/react'
-import { Search } from 'lucide-react'
+import { Search, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { OrderCard } from '@/shared/ui/OrderCard'
 import { useGetRideClassQuotesQuery } from '@/entities/ride-class/api'
@@ -106,6 +106,16 @@ function OrderComposePanel({ mapRef }: OrderComposePanelProps) {
     setIsDestinationFocused(false)
   }
 
+  // Clearing the text alone would desync the UI from the map/machine —
+  // once a result is picked or the map is dragged to settle, `destination`
+  // is already committed to context (see onPick/onUserSettle above), and
+  // the marker/route/class prices are driven by `context.destination`, not
+  // by this input's text. CLEAR_DESTINATION resets both in one go.
+  const handleClearDestination = () => {
+    setDestinationQuery('')
+    actorRef.send({ type: 'CLEAR_DESTINATION' })
+  }
+
   return (
     <>
       <OrderCard className="flex flex-col gap-1" data-slot="order-compose">
@@ -172,9 +182,21 @@ function OrderComposePanel({ mapRef }: OrderComposePanelProps) {
                 setIsDestinationFocused(false)
               }}
               placeholder="Куда едем?"
-              className="w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+              className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
               data-slot="compose-to"
             />
+            {(destinationQuery.length > 0 || destination) && (
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={handleClearDestination}
+                aria-label="Очистить"
+                className="shrink-0 text-muted-foreground hover:text-foreground"
+                data-slot="compose-to-clear"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
           {isDestinationFocused && (
             <>

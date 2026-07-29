@@ -45,6 +45,7 @@ export type OrderFlowEvent =
   | { type: 'SET_PICKUP'; coords: GeoCoords }
   | { type: 'CONFIRM_PICKUP' }
   | { type: 'SET_DESTINATION'; coords: GeoCoords }
+  | { type: 'CLEAR_DESTINATION' }
   | { type: 'CONFIRM_DESTINATION' }
   | { type: 'BACK_TO_DESTINATION' }
   | { type: 'SELECT_CLASS'; classId: RideClassId }
