@@ -51,11 +51,17 @@ test.describe('desktop layout (lg breakpoint)', () => {
     const rail = page.locator('[data-slot="order-rail"]')
     await expect(rail.locator('[data-slot="order-compose"]')).toBeVisible()
 
-    // Rail and map area are real flex siblings, not stacked/overlaid — the
-    // map area must start where the rail ends, not underneath it.
+    // Since 2d the rail floats as an elevated card over a full-bleed map
+    // (intentional overlay, not flex siblings) — the map area starts at/
+    // before the card's left edge and extends past its right edge, and the
+    // card itself is inset from the viewport edges (offset by lg:left-4/
+    // top-4, not flush).
     const railBox = (await rail.boundingBox())!
     const mapAreaBox = (await page.locator('[data-slot="order-map-area"]').boundingBox())!
-    expect(mapAreaBox.x).toBeGreaterThanOrEqual(railBox.x + railBox.width)
+    expect(mapAreaBox.x).toBeLessThanOrEqual(railBox.x)
+    expect(mapAreaBox.x + mapAreaBox.width).toBeGreaterThan(railBox.x + railBox.width)
+    expect(railBox.x).toBeGreaterThan(0)
+    expect(railBox.y).toBeGreaterThan(0)
 
     // Desktop auto-fast-forwards past the standalone pickup step (machine.ts
     // `always` transitions) — "Откуда" is already an editable row with the

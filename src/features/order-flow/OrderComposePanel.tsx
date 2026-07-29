@@ -92,10 +92,10 @@ function OrderComposePanel({ mapRef }: OrderComposePanelProps) {
 
   return (
     <div className="flex h-full flex-col gap-3 p-4" data-slot="order-compose">
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1 rounded-xl bg-muted p-1">
         {isEditingPickup ? (
           <div>
-            <div className="flex items-center gap-2 rounded-lg border border-border px-3 py-2">
+            <div className="flex items-center gap-2 rounded-lg px-3 py-2">
               <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
               <input
                 autoFocus
@@ -109,7 +109,7 @@ function OrderComposePanel({ mapRef }: OrderComposePanelProps) {
                 data-slot="compose-from-input"
               />
             </div>
-            {isSearchingPickup && <p className="mt-2 text-xs text-muted-foreground">Ищем…</p>}
+            {isSearchingPickup && <p className="mt-2 px-2 text-xs text-muted-foreground">Ищем…</p>}
             {pickupResults && pickupResults.length > 0 && (
               <div className="mt-1 flex flex-col" onMouseDown={(e) => e.preventDefault()}>
                 {pickupResults.map((place) => (
@@ -128,7 +128,7 @@ function OrderComposePanel({ mapRef }: OrderComposePanelProps) {
           <button
             type="button"
             onClick={() => setIsEditingPickup(true)}
-            className="flex w-full items-center gap-2 rounded-lg border border-border px-3 py-2 text-left"
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left"
             data-slot="compose-from"
           >
             <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -138,8 +138,10 @@ function OrderComposePanel({ mapRef }: OrderComposePanelProps) {
           </button>
         )}
 
+        <div className="h-px bg-border" />
+
         <div className="relative">
-          <div className="flex items-center gap-2 rounded-lg border border-border px-3 py-2">
+          <div className="flex items-center gap-2 rounded-lg px-3 py-2">
             <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
             <input
               value={destinationQuery}
@@ -160,10 +162,10 @@ function OrderComposePanel({ mapRef }: OrderComposePanelProps) {
           {isDestinationFocused && (
             <>
               {isSearchingDestination && showDestinationSearch && (
-                <p className="mt-2 text-xs text-muted-foreground">Ищем…</p>
+                <p className="mt-2 px-2 text-xs text-muted-foreground">Ищем…</p>
               )}
               {showDestinationSearch && !isSearchingDestination && destinationRows.length === 0 && (
-                <p className="mt-2 text-xs text-muted-foreground">Ничего не найдено</p>
+                <p className="mt-2 px-2 text-xs text-muted-foreground">Ничего не найдено</p>
               )}
               {destinationRows.length > 0 && (
                 <div
@@ -189,7 +191,7 @@ function OrderComposePanel({ mapRef }: OrderComposePanelProps) {
 
       {destination && (
         <>
-          <div className="border-t border-border pt-3">
+          <div className="flex flex-col gap-2">
             {isLoadingQuotes && <p className="text-sm text-muted-foreground">Считаем цену…</p>}
             {isQuotesError && <p className="text-sm text-destructive">Не удалось загрузить классы. Попробуйте ещё раз.</p>}
             <ClassGrid
