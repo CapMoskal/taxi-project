@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import type maplibregl from 'maplibre-gl'
 import { skipToken } from '@reduxjs/toolkit/query/react'
+import { animate, motion, useMotionValue } from 'motion/react'
 import { ChevronRight, Search } from 'lucide-react'
-import { BottomSheet } from '@/shared/ui/BottomSheet'
 import { useReverseGeocodeQuery, useSearchPlacesQuery } from '@/shared/map/geocodingApi'
 import type { Place } from '@/shared/map/geocodingApi'
 import { useGetRecentPlacesQuery } from '@/entities/recent-place/api'
@@ -15,6 +15,13 @@ import { PlaceRow } from './PlaceRow'
 interface PickupSheetProps {
   mapRef: RefObject<maplibregl.Map | null>
 }
+
+type PickupSheetSnap = 'idle' | 'retreated'
+
+// Fraction of the sheet's own (measured) height it retreats by while the map
+// is being dragged — same ratio DestinationSheet uses for the analogous B
+// screen, leaves a visible strip rather than hiding the sheet entirely.
+const RETREATED_RATIO = 0.82
 
 // First screen (Yandex-style): the map center pin *is* point A — dragging the
 // map moves it. No confirm step for A itself; tapping "Куда едем?" (or a
@@ -58,16 +65,47 @@ function PickupSheet({ mapRef }: PickupSheetProps) {
   // (zoom's moveend/movestart carry no originalEvent either, so gating on
   // originalEvent instead would have silently dropped zoom-driven updates,
   // which the old code supported).
+  // Retreat-while-dragging (parity with DestinationSheet on screen B, see
+  // docs/decisions.md — the same UX request applied to the "Куда едем?"
+  // sheet down here). Mounts already-retreated and immediately animates to
+  // 'idle' right after — doubling as this sheet's own slide-up-from-bottom
+  // entrance (this component no longer renders through the shared
+  // BottomSheet primitive, which only handled that via AnimatePresence,
+  // unused for this always-mounted-while-on-screen-A sheet).
+  const [snap, setSnap] = useState<PickupSheetSnap>('retreated')
+  useEffect(() => {
+    setSnap('idle')
+  }, [])
+
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [sheetHeight, setSheetHeight] = useState(0)
+  useEffect(() => {
+    const measure = () => setSheetHeight(containerRef.current?.offsetHeight ?? 0)
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [])
+  const retreatedY = sheetHeight * RETREATED_RATIO
+
+  const y = useMotionValue(0)
+  useEffect(() => {
+    const controls = animate(y, snap === 'retreated' ? retreatedY : 0, { type: 'spring', damping: 30, stiffness: 300 })
+    return () => controls.stop()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [snap, sheetHeight])
+
   const userDraggedRef = useRef(false)
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
     const onDragStart = () => {
       userDraggedRef.current = true
+      setSnap('retreated')
     }
     const onMoveEnd = () => {
       if (!userDraggedRef.current) return
       userDraggedRef.current = false
+      setSnap('idle')
       const center = map.getCenter()
       actorRef.send({ type: 'SET_PICKUP', coords: { lat: center.lat, lng: center.lng } })
     }
@@ -194,7 +232,19 @@ function PickupSheet({ mapRef }: PickupSheetProps) {
           DestinationSheet's center pin for B), and an uncapped list (5 mock
           recents) grows tall enough to visually bury that center under the
           sheet, even though map.getCenter() still reports it correctly. */}
-      <BottomSheet className="flex max-h-[45vh] flex-col">{listContent}</BottomSheet>
+      <motion.div
+        ref={containerRef}
+        // will-change: see DestinationSheet.tsx — without it, on real iOS
+        // Safari this transform silently never repaints while a touch is
+        // actively panning the map underneath (confirmed via on-device
+        // diagnostics, docs/decisions.md).
+        style={{ y, willChange: 'transform' }}
+        className="absolute inset-x-0 bottom-0 z-20 flex max-h-[45vh] flex-col rounded-t-2xl border-t border-border bg-background p-4 shadow-lg"
+        data-slot="bottom-sheet"
+      >
+        <div className="mx-auto mb-3 h-1 w-10 shrink-0 rounded-full bg-muted" />
+        {listContent}
+      </motion.div>
     </>
   )
 }

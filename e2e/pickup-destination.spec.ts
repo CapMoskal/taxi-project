@@ -39,6 +39,41 @@ test.describe('pickup (A) and destination (B) screens', () => {
     }).toPass()
   })
 
+  test('dragging the map on screen A retreats the "Куда едем?" sheet, settle restores it', async ({ page }) => {
+    // Parity with the equivalent DestinationSheet (screen B) behavior —
+    // Eugene asked for the same "duck down while dragging" UX on screen A's
+    // sheet too (see docs/decisions.md). Real fix on real iOS turned out to
+    // be `will-change: transform` (a GPU layer-promotion hint) — this test
+    // guards the shape in Chromium; it won't catch that class of bug (see
+    // decisions.md for why Chromium never reproduced the original issue).
+    await page.goto('/')
+    const sheet = page.locator('[data-slot="bottom-sheet"]')
+    await expect(sheet).toBeVisible()
+    // Same transient-pre-spring-position caveat as DestinationSheet's
+    // analogous test — the sheet mounts already-retreated (sheetHeight
+    // unmeasured) and springs to 'idle' right after; grab the bounding box
+    // only once that's settled.
+    await page.waitForTimeout(500)
+    const restTop = (await sheet.boundingBox())!.y
+
+    const box = (await page.locator('canvas').first().boundingBox())!
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height * 0.3)
+    await page.mouse.down()
+    await page.mouse.move(box.x + box.width / 2 + 60, box.y + box.height * 0.3 - 120, { steps: 10 })
+
+    await expect(async () => {
+      const midTop = (await sheet.boundingBox())!.y
+      expect(midTop).toBeGreaterThan(restTop + 20)
+    }).toPass()
+
+    await page.mouse.up()
+
+    await expect(async () => {
+      const endTop = (await sheet.boundingBox())!.y
+      expect(Math.abs(endTop - restTop)).toBeLessThan(5)
+    }).toPass()
+  })
+
   test('tapping the pickup pill lets you type point A manually, dragging still works after', async ({ page }) => {
     await page.goto('/')
     await expect(page.locator('[data-slot="pickup-pill"]')).toContainText('Тверская')

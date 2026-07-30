@@ -98,63 +98,10 @@ export function useDestinationSync(
     map.on('dragstart', handleUserMoveStart)
     map.on('zoomstart', handleUserMoveStart)
     map.on('moveend', handleMoveEnd)
-
-    // iOS Safari-only bug (Eugene, real iPhone — reproduced neither in
-    // Chromium/mouse, Chromium/synthetic-touch, nor Chrome DevTools mobile
-    // emulation, which all fire MapLibre's `dragstart` correctly on the
-    // very first pan): on real iOS the map visibly pans under the finger,
-    // but `dragstart` above never fires (or never carries `originalEvent`)
-    // for that first drag — confirmed by Eugene directly ("карта
-    // двигается, панель нет"). A prior fix attempt (a no-op `jumpTo` on
-    // mount, meant to "warm up" MapLibre's gesture classifier) did NOT fix
-    // it on-device — so rather than keep guessing why MapLibre's own
-    // dragstart is unreliable there, this bypasses it: listen to raw
-    // Pointer Events directly on the map canvas, which unlike `dragstart`
-    // are a browser-native signal independent of MapLibre's internal
-    // gesture recognizer, and are well-supported on iOS Safari.
-    const canvas = map.getCanvas()
-    let pointerDown = false
-    let startX = 0
-    let startY = 0
-    // A few px of slop so a plain tap (no movement) doesn't retreat the
-    // sheet — only an actual drag should.
-    const DRAG_THRESHOLD_PX = 6
-    const handlePointerDown = (e: PointerEvent) => {
-      pointerDown = true
-      startX = e.clientX
-      startY = e.clientY
-    }
-    const handlePointerMove = (e: PointerEvent) => {
-      if (!pointerDown || isUserDrivenMoveRef.current) return
-      const dx = e.clientX - startX
-      const dy = e.clientY - startY
-      if (Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return
-      // Same flag `handleUserMoveStart` sets — `handleMoveEnd` above relies
-      // on it to treat the eventual `moveend` as user-driven and restore
-      // the sheet, regardless of whether MapLibre's own `dragstart` ever
-      // fires for this gesture. moveend is the camera's own "view finished
-      // changing" signal (fires whenever the camera position actually
-      // moves, which we know it does here — the map visibly pans), so it's
-      // trustworthy even when dragstart classification is flaky.
-      isUserDrivenMoveRef.current = true
-      onUserMoveStartRef.current?.()
-    }
-    const handlePointerUp = () => {
-      pointerDown = false
-    }
-    canvas.addEventListener('pointerdown', handlePointerDown)
-    canvas.addEventListener('pointermove', handlePointerMove)
-    canvas.addEventListener('pointerup', handlePointerUp)
-    canvas.addEventListener('pointercancel', handlePointerUp)
-
     return () => {
       map.off('dragstart', handleUserMoveStart)
       map.off('zoomstart', handleUserMoveStart)
       map.off('moveend', handleMoveEnd)
-      canvas.removeEventListener('pointerdown', handlePointerDown)
-      canvas.removeEventListener('pointermove', handlePointerMove)
-      canvas.removeEventListener('pointerup', handlePointerUp)
-      canvas.removeEventListener('pointercancel', handlePointerUp)
     }
   }, [mapRef])
 
