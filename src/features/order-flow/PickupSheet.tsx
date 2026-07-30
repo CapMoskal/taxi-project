@@ -18,11 +18,6 @@ interface PickupSheetProps {
 
 type PickupSheetSnap = 'idle' | 'retreated'
 
-// Fraction of the sheet's own (measured) height it retreats by while the map
-// is being dragged — same ratio DestinationSheet uses for the analogous B
-// screen, leaves a visible strip rather than hiding the sheet entirely.
-const RETREATED_RATIO = 0.82
-
 // First screen (Yandex-style): the map center pin *is* point A — dragging the
 // map moves it. No confirm step for A itself; tapping "Куда едем?" (or a
 // recent address) advances straight to selectingDestination (point B).
@@ -78,21 +73,39 @@ function PickupSheet({ mapRef }: PickupSheetProps) {
   }, [])
 
   const containerRef = useRef<HTMLDivElement>(null)
+  // Retreat target isn't a fixed fraction (unlike DestinationSheet's B
+  // screen) — Eugene asked for the map to be visible "as much as possible"
+  // while dragging here, so it retreats exactly down to the bottom of the
+  // "Куда едем?" row, hiding the recent-addresses list entirely (whatever
+  // its length) rather than leaving an arbitrary strip.
+  const whereToRef = useRef<HTMLButtonElement>(null)
   const [sheetHeight, setSheetHeight] = useState(0)
+  const [visibleHeight, setVisibleHeight] = useState(0)
   useEffect(() => {
-    const measure = () => setSheetHeight(containerRef.current?.offsetHeight ?? 0)
+    const measure = () => {
+      setSheetHeight(containerRef.current?.offsetHeight ?? 0)
+      if (containerRef.current && whereToRef.current) {
+        const containerTop = containerRef.current.getBoundingClientRect().top
+        const whereToBottom = whereToRef.current.getBoundingClientRect().bottom
+        setVisibleHeight(whereToBottom - containerTop)
+      }
+    }
     measure()
     window.addEventListener('resize', measure)
     return () => window.removeEventListener('resize', measure)
-  }, [])
-  const retreatedY = sheetHeight * RETREATED_RATIO
+    // recentPlaces arrives async (MSW delay) and changes the container's
+    // total height well after mount — re-measure once it lands, or
+    // sheetHeight/retreatedY would stay stuck at the pre-load (near-zero)
+    // reading and the retreat would barely move anything.
+  }, [recentPlaces])
+  const retreatedY = Math.max(0, sheetHeight - visibleHeight)
 
   const y = useMotionValue(0)
   useEffect(() => {
     const controls = animate(y, snap === 'retreated' ? retreatedY : 0, { type: 'spring', damping: 30, stiffness: 300 })
     return () => controls.stop()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [snap, sheetHeight])
+  }, [snap, sheetHeight, visibleHeight])
 
   const userDraggedRef = useRef(false)
   useEffect(() => {
@@ -141,6 +154,7 @@ function PickupSheet({ mapRef }: PickupSheetProps) {
   const listContent = (
     <>
       <button
+        ref={whereToRef}
         type="button"
         onClick={handleConfirmPickup}
         disabled={!pickup}
