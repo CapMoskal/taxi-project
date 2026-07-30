@@ -111,7 +111,18 @@ function DestinationSheet({ mapRef }: DestinationSheetProps) {
     <>
       <motion.div
         ref={containerRef}
-        style={{ y }}
+        // will-change hints the browser to promote this element to its own
+        // GPU compositing layer ahead of time, instead of deciding whether
+        // to do so mid-gesture. Without it, on real iOS Safari the sheet's
+        // Framer-driven translateY silently never repaints while a touch is
+        // actively panning the (WebGL) map underneath — confirmed via
+        // on-device diagnostics: React state/animation calls all fire
+        // correctly, only the actual paint never lands until the touch
+        // ends (see docs/decisions.md). Small/simple elements don't need
+        // this hint to animate correctly even mid-touch; this sheet is
+        // large (70vh) with shadow/border/nested content, competing for
+        // layer-promotion priority with the live-panning map.
+        style={{ y, willChange: 'transform' }}
         drag="y"
         dragConstraints={{ top: 0, bottom: retreatedY }}
         dragElastic={0.15}
