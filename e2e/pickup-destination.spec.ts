@@ -92,6 +92,46 @@ test.describe('pickup (A) and destination (B) screens', () => {
     await expect(page.locator('[data-slot="destination-sheet"]')).toBeVisible()
   })
 
+  test('dragging the map on the FIRST drag (before any pick) retreats the sheet, settle restores it', async ({
+    page,
+  }) => {
+    // Regression for an iOS-only bug (not reproducible in Chromium, see
+    // decisions.md): entering via "Куда едем?" — no prior jumpTo — used to
+    // leave the sheet's retreat-on-drag trigger dormant on iOS Safari until
+    // some later programmatic jumpTo "warmed it up". This is the exact path
+    // that used to fail on a real device; Chromium never reproduced the
+    // underlying MapLibre event gap, so this test guards the fix's shape
+    // (a no-op jumpTo on mount), not the original bug itself.
+    await page.goto('/')
+    await page.locator('[data-slot="pickup-where-to"]').click()
+
+    const sheet = page.locator('[data-slot="destination-sheet"]')
+    await expect(sheet).toBeVisible()
+    // The sheet mounts at translateY=0 (sheetHeight starts at 0) and only
+    // springs to its real "peek" position once sheetHeight is measured via
+    // a post-mount effect — grabbing the bounding box too early captures
+    // that transient pre-spring position, not the actual rest state.
+    await page.waitForTimeout(500)
+    const restTop = (await sheet.boundingBox())!.y
+
+    const box = (await page.locator('canvas').first().boundingBox())!
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height * 0.25)
+    await page.mouse.down()
+    await page.mouse.move(box.x + box.width / 2 + 60, box.y + box.height * 0.25 - 120, { steps: 10 })
+
+    await expect(async () => {
+      const midTop = (await sheet.boundingBox())!.y
+      expect(midTop).toBeGreaterThan(restTop + 20)
+    }).toPass()
+
+    await page.mouse.up()
+
+    await expect(async () => {
+      const endTop = (await sheet.boundingBox())!.y
+      expect(Math.abs(endTop - restTop)).toBeLessThan(5)
+    }).toPass()
+  })
+
   test('picking a recent address on screen A opens screen B centered on it, confirm button always visible', async ({
     page,
   }) => {

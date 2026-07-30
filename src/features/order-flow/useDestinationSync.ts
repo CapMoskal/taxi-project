@@ -98,6 +98,19 @@ export function useDestinationSync(
     map.on('dragstart', handleUserMoveStart)
     map.on('zoomstart', handleUserMoveStart)
     map.on('moveend', handleMoveEnd)
+    // iOS Safari-only bug (reported by Eugene, reproduced neither in
+    // Chromium/mouse nor Chromium/synthetic-touch — only on real iOS,
+    // Safari tab and PWA both): the very first user drag on screen B moves
+    // the map visibly but MapLibre doesn't emit `dragstart` with a real
+    // `originalEvent` yet, so handleUserMoveStart's gate above silently
+    // no-ops and the sheet never retreats — until any *programmatic*
+    // jumpTo happens once (e.g. picking a search/recent result), after
+    // which real drags start emitting `dragstart` correctly. A no-op
+    // jumpTo to the map's own current center reproduces that same
+    // "warm-up" without moving anything, so the very first real drag also
+    // retreats the sheet. moveend fires with no originalEvent, so
+    // handleMoveEnd's isUserDrivenMoveRef gate above ignores it as usual.
+    map.jumpTo({ center: map.getCenter() })
     return () => {
       map.off('dragstart', handleUserMoveStart)
       map.off('zoomstart', handleUserMoveStart)
